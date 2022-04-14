@@ -10,8 +10,8 @@ import logging
 import gym
 from typing import Dict, List, Optional, Type, Union
 
-from ray.rllib.agents.impala import vtrace_tf as vtrace
-from ray.rllib.agents.impala.vtrace_tf_policy import (
+from ray.rllib.algorithms.impala import vtrace_tf as vtrace
+from ray.rllib.algorithms.impala.vtrace_tf_policy import (
     _make_time_major,
     clip_gradients,
     choose_optimizer,
@@ -30,7 +30,7 @@ from ray.rllib.policy.tf_policy import (
     LearningRateSchedule,
     TFPolicy,
 )
-from ray.rllib.agents.ppo.ppo_tf_policy import KLCoeffMixin, ValueNetworkMixin
+from ray.rllib.algorithms.ppo.ppo_tf_policy import KLCoeffMixin, ValueNetworkMixin
 from ray.rllib.models.catalog import ModelCatalog
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.models.tf.tf_action_dist import TFActionDistribution

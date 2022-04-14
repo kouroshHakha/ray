@@ -4,12 +4,12 @@ import random
 import numpy as np
 
 from ray.rllib.agents import with_common_config
-from ray.rllib.agents.dreamer.dreamer_torch_policy import DreamerTorchPolicy
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.dreamer.dreamer_torch_policy import DreamerTorchPolicy
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.execution.common import STEPS_SAMPLED_COUNTER, _get_shared_metrics
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID, SampleBatch
 from ray.rllib.evaluation.metrics import collect_metrics
-from ray.rllib.agents.dreamer.dreamer_model import DreamerModel
+from ray.rllib.algorithms.dreamer.dreamer_model import DreamerModel
 from ray.rllib.execution.rollout_ops import ParallelRollouts
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.metrics.learner_info import LEARNER_INFO

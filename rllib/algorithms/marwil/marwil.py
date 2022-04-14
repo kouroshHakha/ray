@@ -1,7 +1,7 @@
 from typing import Type
 
-from ray.rllib.agents.trainer import Trainer, with_common_config
-from ray.rllib.agents.marwil.marwil_tf_policy import MARWILTFPolicy
+from ray.rllib.algorithms.trainer import Trainer, with_common_config
+from ray.rllib.algorithms.marwil.marwil_tf_policy import MARWILTFPolicy
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.buffers.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from ray.rllib.execution.concurrency_ops import Concurrently
@@ -121,7 +121,7 @@ class MARWILTrainer(Trainer):
     @override(Trainer)
     def get_default_policy_class(self, config: TrainerConfigDict) -> Type[Policy]:
         if config["framework"] == "torch":
-            from ray.rllib.agents.marwil.marwil_torch_policy import MARWILTorchPolicy
+            from ray.rllib.algorithms.marwil.marwil_torch_policy import MARWILTorchPolicy
 
             return MARWILTorchPolicy
         else:

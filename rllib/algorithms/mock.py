@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 
 from ray.tune import result as tune_result
-from ray.rllib.agents.trainer import Trainer, with_common_config
+from ray.rllib.algorithms.trainer import Trainer, with_common_config
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import TrainerConfigDict
 

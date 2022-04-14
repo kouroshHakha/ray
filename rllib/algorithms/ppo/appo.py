@@ -11,9 +11,9 @@ https://docs.ray.io/en/master/rllib-algorithms.html#appo
 """
 from typing import Optional, Type
 
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
-from ray.rllib.agents.ppo.ppo import UpdateKL
+from ray.rllib.algorithms.trainer import Trainer
+from ray.rllib.algorithms.ppo.appo_tf_policy import AsyncPPOTFPolicy
+from ray.rllib.algorithms.ppo.ppo import UpdateKL
 from ray.rllib.agents import impala
 from ray.rllib.policy.policy import Policy
 from ray.rllib.execution.common import (
@@ -137,7 +137,7 @@ class APPOTrainer(impala.ImpalaTrainer):
         self, config: PartialTrainerConfigDict
     ) -> Optional[Type[Policy]]:
         if config["framework"] == "torch":
-            from ray.rllib.agents.ppo.appo_torch_policy import AsyncPPOTorchPolicy
+            from ray.rllib.algorithms.ppo.appo_torch_policy import AsyncPPOTorchPolicy
 
             return AsyncPPOTorchPolicy
         elif config["framework"] == "tf":

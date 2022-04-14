@@ -1,8 +1,8 @@
 import unittest
 
 import ray
-import ray.rllib.agents.dqn as dqn
-import ray.rllib.agents.ppo as ppo
+import ray.rllib.algorithms.dqn as dqn
+import ray.rllib.algorithms.ppo as ppo
 from ray.rllib.examples.env.memory_leaking_env import MemoryLeakingEnv
 from ray.rllib.examples.policy.memory_leaking_policy import MemoryLeakingPolicy
 from ray.rllib.policy.policy import PolicySpec

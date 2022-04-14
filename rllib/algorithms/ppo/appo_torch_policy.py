@@ -10,14 +10,14 @@ import numpy as np
 import logging
 from typing import Type
 
-from ray.rllib.agents.dqn.simple_q_torch_policy import TargetNetworkMixin
-import ray.rllib.agents.impala.vtrace_torch as vtrace
-from ray.rllib.agents.impala.vtrace_torch_policy import (
+from ray.rllib.algorithms.dqn.simple_q_torch_policy import TargetNetworkMixin
+import ray.rllib.algorithms.impala.vtrace_torch as vtrace
+from ray.rllib.algorithms.impala.vtrace_torch_policy import (
     make_time_major,
     choose_optimizer,
 )
-from ray.rllib.agents.ppo.appo_tf_policy import make_appo_model, postprocess_trajectory
-from ray.rllib.agents.a3c.a3c_torch_policy import ValueNetworkMixin
+from ray.rllib.algorithms.ppo.appo_tf_policy import make_appo_model, postprocess_trajectory
+from ray.rllib.algorithms.a3c.a3c_torch_policy import ValueNetworkMixin
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.models.torch.torch_action_dist import (

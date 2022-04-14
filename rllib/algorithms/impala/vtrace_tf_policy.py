@@ -7,7 +7,7 @@ import logging
 import gym
 
 import ray
-from ray.rllib.agents.impala import vtrace_tf as vtrace
+from ray.rllib.algorithms.impala import vtrace_tf as vtrace
 from ray.rllib.models.tf.tf_action_dist import Categorical
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.tf_policy_template import build_tf_policy
@@ -342,7 +342,7 @@ def setup_mixins(policy, obs_space, action_space, config):
 
 VTraceTFPolicy = build_tf_policy(
     name="VTraceTFPolicy",
-    get_default_config=lambda: ray.rllib.agents.impala.impala.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.impala.impala.DEFAULT_CONFIG,
     loss_fn=build_vtrace_loss,
     stats_fn=stats,
     grad_stats_fn=grad_stats,

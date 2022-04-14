@@ -4,7 +4,7 @@ import numpy as np
 from typing import Any, Dict
 
 import ray
-import ray.rllib.agents.impala.vtrace_torch as vtrace
+import ray.rllib.algorithms.impala.vtrace_torch as vtrace
 from ray.rllib.models.torch.torch_action_dist import TorchCategorical
 from ray.rllib.policy.policy import Policy
 from ray.rllib.policy.policy_template import build_policy_class
@@ -291,7 +291,7 @@ VTraceTorchPolicy = build_policy_class(
     name="VTraceTorchPolicy",
     framework="torch",
     loss_fn=build_vtrace_loss,
-    get_default_config=lambda: ray.rllib.agents.impala.impala.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.impala.impala.DEFAULT_CONFIG,
     stats_fn=stats,
     extra_grad_process_fn=apply_grad_clipping,
     optimizer_fn=choose_optimizer,

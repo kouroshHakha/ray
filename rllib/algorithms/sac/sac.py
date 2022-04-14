@@ -1,9 +1,9 @@
 import logging
 from typing import Type
 
-from ray.rllib.agents.trainer import with_common_config
-from ray.rllib.agents.dqn.dqn import DQNTrainer
-from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy
+from ray.rllib.algorithms.trainer import with_common_config
+from ray.rllib.algorithms.dqn.dqn import DQNTrainer
+from ray.rllib.algorithms.sac.sac_tf_policy import SACTFPolicy
 from ray.rllib.policy.policy import Policy
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.deprecation import DEPRECATED_VALUE, deprecation_warning
@@ -218,7 +218,7 @@ class SACTrainer(DQNTrainer):
     @override(DQNTrainer)
     def get_default_policy_class(self, config: TrainerConfigDict) -> Type[Policy]:
         if config["framework"] == "torch":
-            from ray.rllib.agents.sac.sac_torch_policy import SACTorchPolicy
+            from ray.rllib.algorithms.sac.sac_torch_policy import SACTorchPolicy
 
             return SACTorchPolicy
         else:

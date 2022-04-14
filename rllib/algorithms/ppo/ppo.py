@@ -14,9 +14,9 @@ from typing import List, Optional, Type, Union
 
 from ray.util.debug import log_once
 from ray.rllib.agents import with_common_config
-from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.trainer_config import TrainerConfig
+from ray.rllib.algorithms.ppo.ppo_tf_policy import PPOTFPolicy
+from ray.rllib.algorithms.trainer import Trainer
+from ray.rllib.algorithms.trainer_config import TrainerConfig
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.rollout_ops import (
     ParallelRollouts,
@@ -202,7 +202,7 @@ class PPOConfig(TrainerConfig):
         return self
 
 
-# Deprecated: Use ray.rllib.agents.ppo.PPOConfig instead!
+# Deprecated: Use ray.rllib.algorithms.ppo.PPOConfig instead!
 class _deprecated_default_config(dict):
     def __init__(self):
         super().__init__(
@@ -237,8 +237,8 @@ class _deprecated_default_config(dict):
         )
 
     @Deprecated(
-        old="ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG",
-        new="ray.rllib.agents.ppo.ppo.PPOConfig(...)",
+        old="ray.rllib.algorithms.ppo.ppo.DEFAULT_CONFIG",
+        new="ray.rllib.algorithms.ppo.ppo.PPOConfig(...)",
         error=False,
     )
     def __getitem__(self, item):
@@ -420,7 +420,7 @@ class PPOTrainer(Trainer):
     @override(Trainer)
     def get_default_policy_class(self, config: TrainerConfigDict) -> Type[Policy]:
         if config["framework"] == "torch":
-            from ray.rllib.agents.ppo.ppo_torch_policy import PPOTorchPolicy
+            from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 
             return PPOTorchPolicy
         else:

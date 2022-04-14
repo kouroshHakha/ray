@@ -27,8 +27,8 @@ from typing import (
 import ray
 from ray.actor import ActorHandle
 from ray.exceptions import RayError
-from ray.rllib.agents.callbacks import DefaultCallbacks
-from ray.rllib.agents.trainer_config import TrainerConfig
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
+from ray.rllib.algorithms.trainer_config import TrainerConfig
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.env.utils import gym_env_creator
@@ -725,7 +725,7 @@ class Trainer(Trainable):
     This allows you to override the `execution_plan` method to implement
     your own algorithm logic. You can find the different built-in
     algorithms' execution plans in their respective main py files,
-    e.g. rllib.agents.dqn.dqn.py or rllib.agents.impala.impala.py.
+    e.g. rllib.algorithms.dqn.dqn.py or rllib.algorithms.impala.impala.py.
 
     The most important API methods a Trainer exposes are `train()`,
     `evaluate()`, `save()` and `restore()`. Trainer objects retain internal
@@ -1995,7 +1995,7 @@ class Trainer(Trainable):
                 If None, the output format will be DL framework specific.
 
         Example:
-            >>> from ray.rllib.agents.ppo import PPOTrainer
+            >>> from ray.rllib.algorithms.ppo import PPOTrainer
             >>> # Use a Trainer from RLlib or define your own.
             >>> trainer = PPOTrainer(...) # doctest: +SKIP
             >>> for _ in range(10): # doctest: +SKIP
@@ -2020,7 +2020,7 @@ class Trainer(Trainable):
             policy_id: Optional policy id to export.
 
         Example:
-            >>> from ray.rllib.agents.ppo import PPOTrainer
+            >>> from ray.rllib.algorithms.ppo import PPOTrainer
             >>> # Use a Trainer from RLlib or define your own.
             >>> trainer = PPOTrainer(...) # doctest: +SKIP
             >>> for _ in range(10): # doctest: +SKIP
@@ -2042,7 +2042,7 @@ class Trainer(Trainable):
             policy_id: Optional policy id to import into.
 
         Example:
-            >>> from ray.rllib.agents.ppo import PPOTrainer
+            >>> from ray.rllib.algorithms.ppo import PPOTrainer
             >>> trainer = PPOTrainer(...) # doctest: +SKIP
             >>> trainer.import_policy_model_from_h5("/tmp/weights.h5") # doctest: +SKIP
             >>> for _ in range(10): # doctest: +SKIP

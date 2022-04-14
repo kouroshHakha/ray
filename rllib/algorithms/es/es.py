@@ -9,8 +9,8 @@ import time
 
 import ray
 from ray.rllib.agents import Trainer, with_common_config
-from ray.rllib.agents.es import optimizers, utils
-from ray.rllib.agents.es.es_tf_policy import ESTFPolicy, rollout
+from ray.rllib.algorithms.es import optimizers, utils
+from ray.rllib.algorithms.es.es_tf_policy import ESTFPolicy, rollout
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.rllib.utils import FilterManager
@@ -206,7 +206,7 @@ class Worker:
 
 def get_policy_class(config):
     if config["framework"] == "torch":
-        from ray.rllib.agents.es.es_torch_policy import ESTorchPolicy
+        from ray.rllib.algorithms.es.es_torch_policy import ESTorchPolicy
 
         policy_cls = ESTorchPolicy
     else:

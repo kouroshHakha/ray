@@ -4,15 +4,15 @@ import logging
 from typing import Tuple, Type
 
 import ray
-from ray.rllib.agents.a3c.a3c_torch_policy import vf_preds_fetches
-from ray.rllib.agents.maml.maml_torch_policy import (
+from ray.rllib.algorithms.a3c.a3c_torch_policy import vf_preds_fetches
+from ray.rllib.algorithms.maml.maml_torch_policy import (
     setup_mixins,
     maml_loss,
     maml_stats,
     maml_optimizer_fn,
     KLCoeffMixin,
 )
-from ray.rllib.agents.ppo.ppo_tf_policy import setup_config
+from ray.rllib.algorithms.ppo.ppo_tf_policy import setup_config
 from ray.rllib.evaluation.postprocessing import compute_gae_for_sample_batch
 from ray.rllib.models.catalog import ModelCatalog
 from ray.rllib.models.modelv2 import ModelV2
@@ -121,7 +121,7 @@ def make_model_and_action_dist(
 MBMPOTorchPolicy = build_policy_class(
     name="MBMPOTorchPolicy",
     framework="torch",
-    get_default_config=lambda: ray.rllib.agents.mbmpo.mbmpo.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.mbmpo.mbmpo.DEFAULT_CONFIG,
     make_model_and_action_dist=make_model_and_action_dist,
     loss_fn=maml_loss,
     stats_fn=maml_stats,

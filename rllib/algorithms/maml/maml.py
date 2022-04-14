@@ -4,9 +4,9 @@ from typing import Type
 
 from ray.rllib.utils.sgd import standardized
 from ray.rllib.agents import with_common_config
-from ray.rllib.agents.maml.maml_tf_policy import MAMLTFPolicy
-from ray.rllib.agents.maml.maml_torch_policy import MAMLTorchPolicy
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.maml.maml_tf_policy import MAMLTFPolicy
+from ray.rllib.algorithms.maml.maml_torch_policy import MAMLTorchPolicy
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.common import (

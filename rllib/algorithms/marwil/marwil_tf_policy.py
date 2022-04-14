@@ -3,7 +3,7 @@ import gym
 from typing import Optional, Dict
 
 import ray
-from ray.rllib.agents.ppo.ppo_tf_policy import compute_and_clip_gradients
+from ray.rllib.algorithms.ppo.ppo_tf_policy import compute_and_clip_gradients
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.evaluation.postprocessing import compute_advantages, Postprocessing
 from ray.rllib.policy.tf_policy_template import build_tf_policy
@@ -232,7 +232,7 @@ def setup_mixins(
 
 MARWILTFPolicy = build_tf_policy(
     name="MARWILTFPolicy",
-    get_default_config=lambda: ray.rllib.agents.marwil.marwil.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.marwil.marwil.DEFAULT_CONFIG,
     loss_fn=marwil_loss,
     stats_fn=stats,
     postprocess_fn=postprocess_advantages,

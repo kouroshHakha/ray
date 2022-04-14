@@ -4,8 +4,8 @@ import numpy as np
 import tree  # pip install dm_tree
 
 import ray
-from ray.rllib.agents.qmix.mixers import VDNMixer, QMixer
-from ray.rllib.agents.qmix.model import RNNModel, _get_size
+from ray.rllib.algorithms.qmix.mixers import VDNMixer, QMixer
+from ray.rllib.algorithms.qmix.model import RNNModel, _get_size
 from ray.rllib.env.multi_agent_env import ENV_STATE
 from ray.rllib.env.wrappers.group_agents_wrapper import GROUP_REWARDS
 from ray.rllib.models.torch.torch_action_dist import TorchCategorical
@@ -166,7 +166,7 @@ class QMixTorchPolicy(Policy):
 
     def __init__(self, obs_space, action_space, config):
         _validate(obs_space, action_space)
-        config = dict(ray.rllib.agents.qmix.qmix.DEFAULT_CONFIG, **config)
+        config = dict(ray.rllib.algorithms.qmix.qmix.DEFAULT_CONFIG, **config)
         self.framework = "torch"
         super().__init__(obs_space, action_space, config)
         self.n_agents = len(obs_space.original_space.spaces)

@@ -2,7 +2,7 @@ import logging
 from typing import Dict, List, Type, Union
 
 import ray
-from ray.rllib.agents.ppo.ppo_tf_policy import setup_config
+from ray.rllib.algorithms.ppo.ppo_tf_policy import setup_config
 from ray.rllib.evaluation.postprocessing import (
     compute_gae_for_sample_batch,
     Postprocessing,
@@ -34,7 +34,7 @@ class PPOTorchPolicy(TorchPolicy, LearningRateSchedule, EntropyCoeffSchedule):
     """PyTorch policy class used with PPOTrainer."""
 
     def __init__(self, observation_space, action_space, config):
-        config = dict(ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG, **config)
+        config = dict(ray.rllib.algorithms.ppo.ppo.DEFAULT_CONFIG, **config)
         setup_config(self, observation_space, action_space, config)
 
         TorchPolicy.__init__(

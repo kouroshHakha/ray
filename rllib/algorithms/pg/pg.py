@@ -1,9 +1,9 @@
 from typing import Type
 
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.pg.default_config import DEFAULT_CONFIG
-from ray.rllib.agents.pg.pg_tf_policy import PGTFPolicy
-from ray.rllib.agents.pg.pg_torch_policy import PGTorchPolicy
+from ray.rllib.algorithms.trainer import Trainer
+from ray.rllib.algorithms.pg.default_config import DEFAULT_CONFIG
+from ray.rllib.algorithms.pg.pg_tf_policy import PGTFPolicy
+from ray.rllib.algorithms.pg.pg_torch_policy import PGTorchPolicy
 from ray.rllib.policy.policy import Policy
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import TrainerConfigDict

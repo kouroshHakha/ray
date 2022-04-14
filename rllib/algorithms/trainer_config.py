@@ -10,7 +10,7 @@ from typing import (
     Union,
 )
 
-from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.collectors.sample_collector import SampleCollector
 from ray.rllib.evaluation.collectors.simple_list_collector import SimpleListCollector
@@ -25,14 +25,14 @@ from ray.rllib.utils.typing import (
 from ray.tune.logger import Logger
 
 if TYPE_CHECKING:
-    from ray.rllib.agents.trainer import Trainer
+    from ray.rllib.algorithms.trainer import Trainer
 
 
 class TrainerConfig:
     """A RLlib TrainerConfig builds an RLlib trainer from a given configuration.
 
     Example:
-        >>> from ray.rllib.agents.callbacks import MemoryTrackingCallbacks
+        >>> from ray.rllib.algorithms.callbacks import MemoryTrackingCallbacks
         >>> # Construct a generic config object, specifying values within different
         >>> # sub-categories, e.g. "training".
         >>> config = TrainerConfig().training(gamma=0.9, lr=0.01)
@@ -59,7 +59,7 @@ class TrainerConfig:
         # Define the default RLlib Trainer class that this TrainerConfig will be
         # applied to.
         if trainer_class is None:
-            from ray.rllib.agents.trainer import Trainer
+            from ray.rllib.algorithms.trainer import Trainer
 
             trainer_class = Trainer
 
@@ -237,7 +237,7 @@ class TrainerConfig:
         config["num_cpus_for_driver"] = config.pop("num_cpus_for_local_worker", 1)
 
         # Get our Trainer class' default config.
-        from ray.rllib.agents.trainer import Trainer, COMMON_CONFIG
+        from ray.rllib.algorithms.trainer import Trainer, COMMON_CONFIG
 
         # Add our overrides to the default config.
         return Trainer.merge_trainer_configs(
@@ -261,7 +261,7 @@ class TrainerConfig:
                 object. If unspecified, a default logger is created.
 
         Returns:
-            A ray.rllib.agents.trainer.Trainer object.
+            A ray.rllib.algorithms.trainer.Trainer object.
         """
         if env is not None:
             self.env = env

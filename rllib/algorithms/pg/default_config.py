@@ -1,4 +1,4 @@
-from ray.rllib.agents.trainer import with_common_config
+from ray.rllib.algorithms.trainer import with_common_config
 
 # fmt: off
 # __sphinx_doc_begin__

@@ -15,9 +15,9 @@ environment (https://github.com/google-research/recsim).
 import logging
 from typing import List, Type
 
-from ray.rllib.agents.slateq.slateq_tf_policy import SlateQTFPolicy
-from ray.rllib.agents.slateq.slateq_torch_policy import SlateQTorchPolicy
-from ray.rllib.agents.trainer import Trainer, with_common_config
+from ray.rllib.algorithms.slateq.slateq_tf_policy import SlateQTFPolicy
+from ray.rllib.algorithms.slateq.slateq_torch_policy import SlateQTorchPolicy
+from ray.rllib.algorithms.trainer import Trainer, with_common_config
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.concurrency_ops import Concurrently
 from ray.rllib.execution.metric_ops import StandardMetricsReporting

@@ -1,8 +1,8 @@
 from typing import Type
 
-from ray.rllib.agents.trainer import with_common_config
-from ray.rllib.agents.dqn.simple_q import SimpleQTrainer
-from ray.rllib.agents.qmix.qmix_policy import QMixTorchPolicy
+from ray.rllib.algorithms.trainer import with_common_config
+from ray.rllib.algorithms.dqn.simple_q import SimpleQTrainer
+from ray.rllib.algorithms.qmix.qmix_policy import QMixTorchPolicy
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.concurrency_ops import Concurrently
 from ray.rllib.execution.metric_ops import StandardMetricsReporting

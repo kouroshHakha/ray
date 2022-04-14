@@ -408,7 +408,7 @@ def setup_mixins(
 
 
 @Deprecated(
-    old="rllib.agents.ppo.ppo_tf_policy.postprocess_ppo_gae",
+    old="rllib.algorithms.ppo.ppo_tf_policy.postprocess_ppo_gae",
     new="rllib.evaluation.postprocessing.compute_gae_for_sample_batch",
     error=False,
 )
@@ -429,7 +429,7 @@ def postprocess_ppo_gae(
 PPOTFPolicy = build_tf_policy(
     name="PPOTFPolicy",
     loss_fn=ppo_surrogate_loss,
-    get_default_config=lambda: ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.ppo.ppo.DEFAULT_CONFIG,
     postprocess_fn=compute_gae_for_sample_batch,
     stats_fn=kl_and_loss_stats,
     compute_gradients_fn=compute_and_clip_gradients,

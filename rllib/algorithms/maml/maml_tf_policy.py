@@ -1,7 +1,7 @@
 import logging
 
 import ray
-from ray.rllib.agents.ppo.ppo_tf_policy import (
+from ray.rllib.algorithms.ppo.ppo_tf_policy import (
     vf_preds_fetches,
     compute_and_clip_gradients,
     setup_config,
@@ -442,7 +442,7 @@ def setup_mixins(policy, obs_space, action_space, config):
 
 MAMLTFPolicy = build_tf_policy(
     name="MAMLTFPolicy",
-    get_default_config=lambda: ray.rllib.agents.maml.maml.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.maml.maml.DEFAULT_CONFIG,
     loss_fn=maml_loss,
     stats_fn=maml_stats,
     optimizer_fn=maml_optimizer_fn,

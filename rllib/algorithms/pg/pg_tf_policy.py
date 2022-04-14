@@ -5,7 +5,7 @@ TensorFlow policy class used for PG.
 from typing import Dict, List, Type, Union
 
 import ray
-from ray.rllib.agents.pg.utils import post_process_advantages
+from ray.rllib.algorithms.pg.utils import post_process_advantages
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.modelv2 import ModelV2
@@ -75,7 +75,7 @@ def pg_loss_stats(policy: Policy, train_batch: SampleBatch) -> Dict[str, TensorT
 # - PG loss function
 PGTFPolicy = build_tf_policy(
     name="PGTFPolicy",
-    get_default_config=lambda: ray.rllib.agents.pg.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.pg.DEFAULT_CONFIG,
     postprocess_fn=post_process_advantages,
     stats_fn=pg_loss_stats,
     loss_fn=pg_tf_loss,

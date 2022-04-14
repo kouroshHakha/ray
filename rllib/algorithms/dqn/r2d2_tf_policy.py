@@ -4,14 +4,14 @@ from typing import Dict, List, Optional, Tuple
 
 import gym
 import ray
-from ray.rllib.agents.dqn.dqn_tf_policy import (
+from ray.rllib.algorithms.dqn.dqn_tf_policy import (
     clip_gradients,
     compute_q_values,
     PRIO_WEIGHTS,
     postprocess_nstep_and_prio,
 )
-from ray.rllib.agents.dqn.dqn_tf_policy import build_q_model
-from ray.rllib.agents.dqn.simple_q_tf_policy import TargetNetworkMixin
+from ray.rllib.algorithms.dqn.dqn_tf_policy import build_q_model
+from ray.rllib.algorithms.dqn.simple_q_tf_policy import TargetNetworkMixin
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.models.tf.tf_action_dist import Categorical
@@ -267,7 +267,7 @@ def get_distribution_inputs_and_class(
 ) -> Tuple[TensorType, type, List[TensorType]]:
 
     if policy.config["framework"] == "torch":
-        from ray.rllib.agents.dqn.r2d2_torch_policy import (
+        from ray.rllib.algorithms.dqn.r2d2_torch_policy import (
             compute_q_values as torch_compute_q_values,
         )
 
@@ -326,7 +326,7 @@ def before_loss_init(
 R2D2TFPolicy = build_tf_policy(
     name="R2D2TFPolicy",
     loss_fn=r2d2_loss,
-    get_default_config=lambda: ray.rllib.agents.dqn.r2d2.R2D2_DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.dqn.r2d2.R2D2_DEFAULT_CONFIG,
     postprocess_fn=postprocess_nstep_and_prio,
     stats_fn=build_q_stats,
     make_model=build_r2d2_model,

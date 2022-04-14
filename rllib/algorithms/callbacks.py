@@ -22,7 +22,7 @@ from ray.rllib.utils.typing import AgentID, EnvType, PolicyID
 import psutil
 
 if TYPE_CHECKING:
-    from ray.rllib.agents.trainer import Trainer
+    from ray.rllib.algorithms.trainer import Trainer
     from ray.rllib.evaluation import RolloutWorker
 
 
@@ -41,7 +41,7 @@ class DefaultCallbacks:
         if legacy_callbacks_dict:
             deprecation_warning(
                 "callbacks dict interface",
-                "a class extending rllib.agents.callbacks.DefaultCallbacks",
+                "a class extending rllib.algorithms.callbacks.DefaultCallbacks",
             )
         self.legacy_callbacks = legacy_callbacks_dict or {}
 

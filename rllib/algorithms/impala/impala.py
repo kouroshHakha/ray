@@ -2,8 +2,8 @@ import logging
 from typing import Optional, Type
 
 import ray
-from ray.rllib.agents.impala.vtrace_tf_policy import VTraceTFPolicy
-from ray.rllib.agents.trainer import Trainer, with_common_config
+from ray.rllib.algorithms.impala.vtrace_tf_policy import VTraceTFPolicy
+from ray.rllib.algorithms.trainer import Trainer, with_common_config
 from ray.rllib.execution.learner_thread import LearnerThread
 from ray.rllib.execution.multi_gpu_learner_thread import MultiGPULearnerThread
 from ray.rllib.execution.tree_agg import gather_experiences_tree_aggregation
@@ -238,20 +238,20 @@ class ImpalaTrainer(Trainer):
     ) -> Optional[Type[Policy]]:
         if config["framework"] == "torch":
             if config["vtrace"]:
-                from ray.rllib.agents.impala.vtrace_torch_policy import (
+                from ray.rllib.algorithms.impala.vtrace_torch_policy import (
                     VTraceTorchPolicy,
                 )
 
                 return VTraceTorchPolicy
             else:
-                from ray.rllib.agents.a3c.a3c_torch_policy import A3CTorchPolicy
+                from ray.rllib.algorithms.a3c.a3c_torch_policy import A3CTorchPolicy
 
                 return A3CTorchPolicy
         else:
             if config["vtrace"]:
                 return VTraceTFPolicy
             else:
-                from ray.rllib.agents.a3c.a3c_tf_policy import A3CTFPolicy
+                from ray.rllib.algorithms.a3c.a3c_tf_policy import A3CTFPolicy
 
                 return A3CTFPolicy
 

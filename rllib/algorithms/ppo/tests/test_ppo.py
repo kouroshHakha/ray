@@ -2,12 +2,12 @@ import numpy as np
 import unittest
 
 import ray
-from ray.rllib.agents.callbacks import DefaultCallbacks
-import ray.rllib.agents.ppo as ppo
-from ray.rllib.agents.ppo.ppo_tf_policy import (
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
+import ray.rllib.algorithms.ppo as ppo
+from ray.rllib.algorithms.ppo.ppo_tf_policy import (
     ppo_surrogate_loss as ppo_surrogate_loss_tf,
 )
-from ray.rllib.agents.ppo.ppo_torch_policy import PPOTorchPolicy
+from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 from ray.rllib.evaluation.postprocessing import (
     compute_gae_for_sample_batch,
     Postprocessing,
