@@ -3,13 +3,13 @@ import gym
 from typing import Dict, Tuple
 
 import ray
-from ray.rllib.agents.ddpg.ddpg_tf_policy import (
+from ray.rllib.algorithms.ddpg.ddpg_tf_policy import (
     build_ddpg_models,
     get_distribution_inputs_and_class,
     validate_spaces,
 )
-from ray.rllib.agents.dqn.dqn_tf_policy import postprocess_nstep_and_prio, PRIO_WEIGHTS
-from ray.rllib.agents.sac.sac_torch_policy import TargetNetworkMixin
+from ray.rllib.algorithms.dqn.dqn_tf_policy import postprocess_nstep_and_prio, PRIO_WEIGHTS
+from ray.rllib.algorithms.sac.sac_torch_policy import TargetNetworkMixin
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.models.torch.torch_action_dist import TorchDeterministic, TorchDirichlet

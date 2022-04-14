@@ -2,7 +2,7 @@ import unittest
 
 import ray
 from ray import tune
-import ray.rllib.agents.bandit.bandit as bandit
+import ray.rllib.algorithms.bandit.bandit as bandit
 from ray.rllib.examples.env.bandit_envs_discrete import SimpleContextualBandit
 from ray.rllib.utils.test_utils import check_train_results, framework_iterator
 
@@ -70,14 +70,14 @@ class TestBandits(unittest.TestCase):
         """
 
         def try_import_lints():
-            from ray.rllib.contrib.bandits.agents.lin_ts import LinTS  # noqa
+            from ray.rllib.contrib.bandits.algorithms.lin_ts import LinTS  # noqa
 
         self.assertRaisesRegex(
             DeprecationWarning, "has been deprecated. Use", try_import_lints
         )
 
         def try_import_linucb():
-            from ray.rllib.contrib.bandits.agents.lin_ucb import LinUCB  # noqa
+            from ray.rllib.contrib.bandits.algorithms.lin_ucb import LinUCB  # noqa
 
         self.assertRaisesRegex(
             DeprecationWarning, "has been deprecated. Use", try_import_linucb

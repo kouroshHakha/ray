@@ -1,9 +1,9 @@
 import logging
 from typing import Type
 
-from ray.rllib.agents.trainer import with_common_config
-from ray.rllib.agents.dqn.simple_q import SimpleQTrainer
-from ray.rllib.agents.ddpg.ddpg_tf_policy import DDPGTFPolicy
+from ray.rllib.algorithms.trainer import with_common_config
+from ray.rllib.algorithms.dqn.simple_q import SimpleQTrainer
+from ray.rllib.algorithms.ddpg.ddpg_tf_policy import DDPGTFPolicy
 from ray.rllib.policy.policy import Policy
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.deprecation import DEPRECATED_VALUE
@@ -183,7 +183,7 @@ class DDPGTrainer(SimpleQTrainer):
     @override(SimpleQTrainer)
     def get_default_policy_class(self, config: TrainerConfigDict) -> Type[Policy]:
         if config["framework"] == "torch":
-            from ray.rllib.agents.ddpg.ddpg_torch_policy import DDPGTorchPolicy
+            from ray.rllib.algorithms.ddpg.ddpg_torch_policy import DDPGTorchPolicy
 
             return DDPGTorchPolicy
         else:

@@ -28,7 +28,7 @@ torch, nn = try_import_torch()
 
 
 @Deprecated(
-    old="rllib.agents.a3c.a3c_torch_policy.add_advantages",
+    old="rllib.algorithms.a3c.a3c_torch_policy.add_advantages",
     new="rllib.evaluation.postprocessing.compute_gae_for_sample_batch",
     error=False,
 )
@@ -207,7 +207,7 @@ def setup_mixins(
 A3CTorchPolicy = build_policy_class(
     name="A3CTorchPolicy",
     framework="torch",
-    get_default_config=lambda: ray.rllib.agents.a3c.a3c.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.a3c.a3c.DEFAULT_CONFIG,
     loss_fn=actor_critic_loss,
     stats_fn=stats,
     postprocess_fn=compute_gae_for_sample_batch,

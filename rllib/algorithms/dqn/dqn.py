@@ -12,13 +12,13 @@ https://docs.ray.io/en/master/rllib-algorithms.html#deep-q-networks-dqn-rainbow-
 import logging
 from typing import List, Optional, Type
 
-from ray.rllib.agents.dqn.dqn_tf_policy import DQNTFPolicy
-from ray.rllib.agents.dqn.dqn_torch_policy import DQNTorchPolicy
-from ray.rllib.agents.dqn.simple_q import (
+from ray.rllib.algorithms.dqn.dqn_tf_policy import DQNTFPolicy
+from ray.rllib.algorithms.dqn.dqn_torch_policy import DQNTorchPolicy
+from ray.rllib.algorithms.dqn.simple_q import (
     SimpleQTrainer,
     DEFAULT_CONFIG as SIMPLEQ_DEFAULT_CONFIG,
 )
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.concurrency_ops import Concurrently
 from ray.rllib.execution.metric_ops import StandardMetricsReporting

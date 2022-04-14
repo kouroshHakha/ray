@@ -1,9 +1,9 @@
 import logging
 from typing import Type
 
-from ray.rllib.agents.bandit.bandit_tf_policy import BanditTFPolicy
-from ray.rllib.agents.bandit.bandit_torch_policy import BanditTorchPolicy
-from ray.rllib.agents.trainer import Trainer, with_common_config
+from ray.rllib.algorithms.bandit.bandit_tf_policy import BanditTFPolicy
+from ray.rllib.algorithms.bandit.bandit_torch_policy import BanditTorchPolicy
+from ray.rllib.algorithms.trainer import Trainer, with_common_config
 from ray.rllib.policy.policy import Policy
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import TrainerConfigDict

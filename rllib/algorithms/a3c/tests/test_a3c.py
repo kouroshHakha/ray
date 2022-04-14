@@ -1,7 +1,7 @@
 import unittest
 
 import ray
-import ray.rllib.agents.a3c as a3c
+import ray.rllib.algorithms.a3c as a3c
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.rllib.utils.metrics.learner_info import LEARNER_INFO, LEARNER_STATS_KEY
 from ray.rllib.utils.test_utils import (

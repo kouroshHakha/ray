@@ -2,8 +2,8 @@ import logging
 from typing import Any, Dict, Type
 
 from ray.actor import ActorHandle
-from ray.rllib.agents.a3c.a3c_tf_policy import A3CTFPolicy
-from ray.rllib.agents.trainer import Trainer, with_common_config
+from ray.rllib.algorithms.a3c.a3c_tf_policy import A3CTFPolicy
+from ray.rllib.algorithms.trainer import Trainer, with_common_config
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.metric_ops import StandardMetricsReporting
@@ -90,7 +90,7 @@ class A3CTrainer(Trainer):
     @override(Trainer)
     def get_default_policy_class(self, config: TrainerConfigDict) -> Type[Policy]:
         if config["framework"] == "torch":
-            from ray.rllib.agents.a3c.a3c_torch_policy import A3CTorchPolicy
+            from ray.rllib.algorithms.a3c.a3c_torch_policy import A3CTorchPolicy
 
             return A3CTorchPolicy
         else:

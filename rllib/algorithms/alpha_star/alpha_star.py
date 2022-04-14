@@ -7,10 +7,10 @@ from typing import Optional, Type
 
 import ray
 from ray.actor import ActorHandle
-from ray.rllib.agents.alpha_star.distributed_learners import DistributedLearners
-from ray.rllib.agents.alpha_star.league_builder import AlphaStarLeagueBuilder
-from ray.rllib.agents.trainer import Trainer
-import ray.rllib.agents.ppo.appo as appo
+from ray.rllib.algorithms.alpha_star.distributed_learners import DistributedLearners
+from ray.rllib.algorithms.alpha_star.league_builder import AlphaStarLeagueBuilder
+from ray.rllib.algorithms.trainer import Trainer
+import ray.rllib.algorithms.ppo.appo as appo
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.execution.parallel_requests import asynchronous_parallel_requests
 from ray.rllib.execution.buffers.mixin_replay_buffer import MixInMultiAgentReplayBuffer

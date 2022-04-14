@@ -1,10 +1,10 @@
 import logging
 from typing import Type
 
-from ray.rllib.agents.dqn import DQNTrainer, DEFAULT_CONFIG as DQN_DEFAULT_CONFIG
-from ray.rllib.agents.dqn.r2d2_tf_policy import R2D2TFPolicy
-from ray.rllib.agents.dqn.r2d2_torch_policy import R2D2TorchPolicy
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.dqn import DQNTrainer, DEFAULT_CONFIG as DQN_DEFAULT_CONFIG
+from ray.rllib.algorithms.dqn.r2d2_tf_policy import R2D2TFPolicy
+from ray.rllib.algorithms.dqn.r2d2_torch_policy import R2D2TorchPolicy
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.policy.policy import Policy
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import TrainerConfigDict

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Type
 
 import ray
 from ray.actor import ActorHandle
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.actors import create_colocated_actors
 from ray.rllib.utils.typing import PolicyID, TrainerConfigDict

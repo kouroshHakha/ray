@@ -1,8 +1,8 @@
 import math
 
 from ray.util.iter import LocalIterator
-from ray.rllib.agents.a3c.a3c import DEFAULT_CONFIG as A3C_CONFIG, A3CTrainer
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.a3c.a3c import DEFAULT_CONFIG as A3C_CONFIG, A3CTrainer
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.execution.metric_ops import StandardMetricsReporting
 from ray.rllib.execution.rollout_ops import ParallelRollouts, ConcatBatches
 from ray.rllib.execution.train_ops import (

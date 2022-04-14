@@ -5,7 +5,7 @@ import numpy as np
 import re
 from typing import Any, DefaultDict, Dict
 
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.examples.policy.random_policy import RandomPolicy
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.annotations import ExperimentalAPI, override

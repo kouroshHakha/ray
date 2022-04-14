@@ -1,5 +1,5 @@
-from ray.rllib.agents.dqn.apex import ApexTrainer
-from ray.rllib.agents.ddpg.ddpg import DDPGTrainer, DEFAULT_CONFIG as DDPG_CONFIG
+from ray.rllib.algorithms.dqn.apex import ApexTrainer
+from ray.rllib.algorithms.ddpg.ddpg import DDPGTrainer, DEFAULT_CONFIG as DDPG_CONFIG
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import TrainerConfigDict

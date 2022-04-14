@@ -12,9 +12,9 @@ See `simple_q_[tf|torch]_policy.py` for the definition of the policy loss.
 import logging
 from typing import Optional, Type
 
-from ray.rllib.agents.dqn.simple_q_tf_policy import SimpleQTFPolicy
-from ray.rllib.agents.dqn.simple_q_torch_policy import SimpleQTorchPolicy
-from ray.rllib.agents.trainer import Trainer, with_common_config
+from ray.rllib.algorithms.dqn.simple_q_tf_policy import SimpleQTFPolicy
+from ray.rllib.algorithms.dqn.simple_q_torch_policy import SimpleQTorchPolicy
+from ray.rllib.algorithms.trainer import Trainer, with_common_config
 from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 from ray.rllib.execution.concurrency_ops import Concurrently
 from ray.rllib.execution.metric_ops import StandardMetricsReporting

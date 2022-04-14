@@ -3,7 +3,7 @@ from typing import Optional, Dict
 import gym
 
 import ray
-from ray.rllib.agents.ppo.ppo_tf_policy import ValueNetworkMixin
+from ray.rllib.algorithms.ppo.ppo_tf_policy import ValueNetworkMixin
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.evaluation.episode import Episode
 from ray.rllib.evaluation.postprocessing import (
@@ -30,7 +30,7 @@ tf1, tf, tfv = try_import_tf()
 
 
 @Deprecated(
-    old="rllib.agents.a3c.a3c_tf_policy.postprocess_advantages",
+    old="rllib.algorithms.a3c.a3c_tf_policy.postprocess_advantages",
     new="rllib.evaluation.postprocessing.compute_gae_for_sample_batch",
     error=False,
 )
@@ -163,7 +163,7 @@ def setup_mixins(
 
 A3CTFPolicy = build_tf_policy(
     name="A3CTFPolicy",
-    get_default_config=lambda: ray.rllib.agents.a3c.a3c.DEFAULT_CONFIG,
+    get_default_config=lambda: ray.rllib.algorithms.a3c.a3c.DEFAULT_CONFIG,
     loss_fn=actor_critic_loss,
     stats_fn=stats,
     grad_stats_fn=grad_stats,

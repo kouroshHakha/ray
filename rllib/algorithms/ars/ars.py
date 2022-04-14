@@ -10,9 +10,9 @@ import time
 
 import ray
 from ray.rllib.agents import Trainer, with_common_config
-from ray.rllib.agents.ars.ars_tf_policy import ARSTFPolicy
-from ray.rllib.agents.es import optimizers, utils
-from ray.rllib.agents.es.es_tf_policy import rollout
+from ray.rllib.algorithms.ars.ars_tf_policy import ARSTFPolicy
+from ray.rllib.algorithms.es import optimizers, utils
+from ray.rllib.algorithms.es.es_tf_policy import rollout
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.rllib.utils.annotations import override
@@ -200,7 +200,7 @@ class Worker:
 
 def get_policy_class(config):
     if config["framework"] == "torch":
-        from ray.rllib.agents.ars.ars_torch_policy import ARSTorchPolicy
+        from ray.rllib.algorithms.ars.ars_torch_policy import ARSTorchPolicy
 
         policy_cls = ARSTorchPolicy
     else:
