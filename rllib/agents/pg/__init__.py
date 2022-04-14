@@ -1,7 +1,7 @@
-from ray.rllib.agents.pg.pg import PGTrainer, DEFAULT_CONFIG
-from ray.rllib.agents.pg.pg_tf_policy import pg_tf_loss, PGTFPolicy
-from ray.rllib.agents.pg.pg_torch_policy import pg_torch_loss, PGTorchPolicy
-from ray.rllib.agents.pg.utils import post_process_advantages
+from ray.rllib.algorithms.pg.pg import PGTrainer, DEFAULT_CONFIG
+from ray.rllib.algorithms.pg.pg_tf_policy import pg_tf_loss, PGTFPolicy
+from ray.rllib.algorithms.pg.pg_torch_policy import pg_torch_loss, PGTorchPolicy
+from ray.rllib.algorithms.pg.utils import post_process_advantages
 
 __all__ = [
     "pg_tf_loss",
@@ -12,3 +12,10 @@ __all__ = [
     "PGTorchPolicy",
     "PGTrainer",
 ]
+
+from ray.rllib.utils.deprecation import deprecation_warning
+deprecation_warning(
+    'ray.rllib.agents.pg',
+    'ray.rllib.algorithms.pg',
+    error=False
+)
