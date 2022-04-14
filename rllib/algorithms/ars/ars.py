@@ -9,7 +9,7 @@ import random
 import time
 
 import ray
-from ray.rllib.agents import Trainer, with_common_config
+from ray.rllib.algorithms import Trainer, with_common_config
 from ray.rllib.algorithms.ars.ars_tf_policy import ARSTFPolicy
 from ray.rllib.algorithms.es import optimizers, utils
 from ray.rllib.algorithms.es.es_tf_policy import rollout

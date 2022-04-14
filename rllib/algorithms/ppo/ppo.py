@@ -13,7 +13,7 @@ import logging
 from typing import List, Optional, Type, Union
 
 from ray.util.debug import log_once
-from ray.rllib.agents import with_common_config
+from ray.rllib.algorithms import with_common_config
 from ray.rllib.algorithms.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.algorithms.trainer_config import TrainerConfig

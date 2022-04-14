@@ -3,7 +3,7 @@ import numpy as np
 from typing import List, Type
 
 import ray
-from ray.rllib.agents import with_common_config
+from ray.rllib.algorithms import with_common_config
 from ray.rllib.algorithms.mbmpo.mbmpo_torch_policy import MBMPOTorchPolicy
 from ray.rllib.algorithms.mbmpo.model_ensemble import DynamicsEnsembleCustomModel
 from ray.rllib.algorithms.mbmpo.utils import calculate_gae_advantages, MBMPOExploration

@@ -14,7 +14,7 @@ from typing import Optional, Type
 from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.algorithms.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.algorithms.ppo.ppo import UpdateKL
-from ray.rllib.agents import impala
+from ray.rllib.algorithms import impala
 from ray.rllib.policy.policy import Policy
 from ray.rllib.execution.common import (
     STEPS_SAMPLED_COUNTER,

@@ -3,7 +3,7 @@ import logging
 import random
 import numpy as np
 
-from ray.rllib.agents import with_common_config
+from ray.rllib.algorithms import with_common_config
 from ray.rllib.algorithms.dreamer.dreamer_torch_policy import DreamerTorchPolicy
 from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.execution.common import STEPS_SAMPLED_COUNTER, _get_shared_metrics

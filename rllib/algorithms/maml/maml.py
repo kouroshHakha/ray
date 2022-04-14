@@ -3,7 +3,7 @@ import numpy as np
 from typing import Type
 
 from ray.rllib.utils.sgd import standardized
-from ray.rllib.agents import with_common_config
+from ray.rllib.algorithms import with_common_config
 from ray.rllib.algorithms.maml.maml_tf_policy import MAMLTFPolicy
 from ray.rllib.algorithms.maml.maml_torch_policy import MAMLTorchPolicy
 from ray.rllib.algorithms.trainer import Trainer

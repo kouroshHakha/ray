@@ -7,13 +7,13 @@ from ray.rllib.utils.deprecation import Deprecated
 
 
 def _import_a2c():
-    from ray.rllib.agents import a3c
+    from ray.rllib.algorithms import a3c
 
     return a3c.A2CTrainer, a3c.a2c.A2C_DEFAULT_CONFIG
 
 
 def _import_a3c():
-    from ray.rllib.agents import a3c
+    from ray.rllib.algorithms import a3c
 
     return a3c.A3CTrainer, a3c.DEFAULT_CONFIG
 
@@ -25,25 +25,25 @@ def _import_alpha_star():
 
 
 def _import_apex():
-    from ray.rllib.agents import dqn
+    from ray.rllib.algorithms import dqn
 
     return dqn.ApexTrainer, dqn.apex.APEX_DEFAULT_CONFIG
 
 
 def _import_apex_ddpg():
-    from ray.rllib.agents import ddpg
+    from ray.rllib.algorithms import ddpg
 
     return ddpg.ApexDDPGTrainer, ddpg.apex.APEX_DDPG_DEFAULT_CONFIG
 
 
 def _import_appo():
-    from ray.rllib.agents import ppo
+    from ray.rllib.algorithms import ppo
 
     return ppo.APPOTrainer, ppo.appo.DEFAULT_CONFIG
 
 
 def _import_ars():
-    from ray.rllib.agents import ars
+    from ray.rllib.algorithms import ars
 
     return ars.ARSTrainer, ars.DEFAULT_CONFIG
 
@@ -61,121 +61,121 @@ def _import_bandit_linucb():
 
 
 def _import_bc():
-    from ray.rllib.agents import marwil
+    from ray.rllib.algorithms import marwil
 
     return marwil.BCTrainer, marwil.DEFAULT_CONFIG
 
 
 def _import_cql():
-    from ray.rllib.agents import cql
+    from ray.rllib.algorithms import cql
 
     return cql.CQLTrainer, cql.CQL_DEFAULT_CONFIG
 
 
 def _import_ddpg():
-    from ray.rllib.agents import ddpg
+    from ray.rllib.algorithms import ddpg
 
     return ddpg.DDPGTrainer, ddpg.DEFAULT_CONFIG
 
 
 def _import_ddppo():
-    from ray.rllib.agents import ppo
+    from ray.rllib.algorithms import ppo
 
     return ppo.DDPPOTrainer, ppo.DEFAULT_CONFIG
 
 
 def _import_dqn():
-    from ray.rllib.agents import dqn
+    from ray.rllib.algorithms import dqn
 
     return dqn.DQNTrainer, dqn.DEFAULT_CONFIG
 
 
 def _import_dreamer():
-    from ray.rllib.agents import dreamer
+    from ray.rllib.algorithms import dreamer
 
     return dreamer.DREAMERTrainer, dreamer.DEFAULT_CONFIG
 
 
 def _import_es():
-    from ray.rllib.agents import es
+    from ray.rllib.algorithms import es
 
     return es.ESTrainer, es.DEFAULT_CONFIG
 
 
 def _import_impala():
-    from ray.rllib.agents import impala
+    from ray.rllib.algorithms import impala
 
     return impala.ImpalaTrainer, impala.DEFAULT_CONFIG
 
 
 def _import_maml():
-    from ray.rllib.agents import maml
+    from ray.rllib.algorithms import maml
 
     return maml.MAMLTrainer, maml.DEFAULT_CONFIG
 
 
 def _import_marwil():
-    from ray.rllib.agents import marwil
+    from ray.rllib.algorithms import marwil
 
     return marwil.MARWILTrainer, marwil.DEFAULT_CONFIG
 
 
 def _import_mbmpo():
-    from ray.rllib.agents import mbmpo
+    from ray.rllib.algorithms import mbmpo
 
     return mbmpo.MBMPOTrainer, mbmpo.DEFAULT_CONFIG
 
 
 def _import_pg():
-    from ray.rllib.agents import pg
+    from ray.rllib.algorithms import pg
 
     return pg.PGTrainer, pg.DEFAULT_CONFIG
 
 
 def _import_ppo():
-    from ray.rllib.agents import ppo
+    from ray.rllib.algorithms import ppo
 
     return ppo.PPOTrainer, ppo.DEFAULT_CONFIG
 
 
 def _import_qmix():
-    from ray.rllib.agents import qmix
+    from ray.rllib.algorithms import qmix
 
     return qmix.QMixTrainer, qmix.DEFAULT_CONFIG
 
 
 def _import_r2d2():
-    from ray.rllib.agents import dqn
+    from ray.rllib.algorithms import dqn
 
     return dqn.R2D2Trainer, dqn.R2D2_DEFAULT_CONFIG
 
 
 def _import_sac():
-    from ray.rllib.agents import sac
+    from ray.rllib.algorithms import sac
 
     return sac.SACTrainer, sac.DEFAULT_CONFIG
 
 
 def _import_rnnsac():
-    from ray.rllib.agents import sac
+    from ray.rllib.algorithms import sac
 
     return sac.RNNSACTrainer, sac.RNNSAC_DEFAULT_CONFIG
 
 
 def _import_simple_q():
-    from ray.rllib.agents import dqn
+    from ray.rllib.algorithms import dqn
 
     return dqn.SimpleQTrainer, dqn.simple_q.DEFAULT_CONFIG
 
 
 def _import_slate_q():
-    from ray.rllib.agents import slateq
+    from ray.rllib.algorithms import slateq
 
     return slateq.SlateQTrainer, slateq.DEFAULT_CONFIG
 
 
 def _import_td3():
-    from ray.rllib.agents import ddpg
+    from ray.rllib.algorithms import ddpg
 
     return ddpg.TD3Trainer, ddpg.td3.TD3_DEFAULT_CONFIG
 
