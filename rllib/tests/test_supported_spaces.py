@@ -3,7 +3,7 @@ import numpy as np
 import unittest
 
 import ray
-from ray.rllib.agents.registry import get_trainer_class
+from ray.rllib.algorithms.registry import get_trainer_class
 from ray.rllib.examples.env.random_env import RandomEnv
 from ray.rllib.models.tf.complex_input_net import ComplexInputNetwork as ComplexNet
 from ray.rllib.models.tf.fcnet import FullyConnectedNetwork as FCNet

@@ -4,7 +4,7 @@ import numpy as np
 import unittest
 
 import ray
-from ray.rllib.agents.registry import get_trainer_class
+from ray.rllib.algorithms.registry import get_trainer_class
 from ray.rllib.utils.test_utils import check, framework_iterator
 
 

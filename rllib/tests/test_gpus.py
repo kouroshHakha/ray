@@ -1,7 +1,7 @@
 import unittest
 
 import ray
-from ray.rllib.agents.a3c.a2c import A2CTrainer, A2C_DEFAULT_CONFIG
+from ray.rllib.algorithms.a3c.a2c import A2CTrainer, A2C_DEFAULT_CONFIG
 from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.test_utils import framework_iterator
 from ray import tune

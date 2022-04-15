@@ -1,7 +1,7 @@
 import unittest
 
 import ray
-from ray.rllib.agents.a3c import A2CTrainer
+from ray.rllib.algorithms.a3c import A2CTrainer
 from ray.rllib.execution.common import STEPS_SAMPLED_COUNTER, STEPS_TRAINED_COUNTER
 from ray.rllib.utils.metrics.learner_info import LEARNER_INFO
 from ray.rllib.utils.test_utils import framework_iterator

@@ -2,7 +2,7 @@
 import os
 import pytest
 
-import ray.rllib.agents.ppo as ppo
+import ray.rllib.algorithms.ppo as ppo
 from ray.rllib.utils.test_utils import framework_iterator
 
 

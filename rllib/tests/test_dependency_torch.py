@@ -14,7 +14,7 @@ if __name__ == "__main__":
     # signatures/typehints.
     _register_all()
 
-    from ray.rllib.agents.a3c import A2CTrainer
+    from ray.rllib.algorithms.a3c import A2CTrainer
 
     assert "torch" not in sys.modules, "`torch` initially present, when it shouldn't!"
 
