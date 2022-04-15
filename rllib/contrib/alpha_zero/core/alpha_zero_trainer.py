@@ -1,9 +1,9 @@
 import logging
 from typing import Type
 
-from ray.rllib.agents import with_common_config
-from ray.rllib.agents.callbacks import DefaultCallbacks
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms import with_common_config
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.replay_ops import (
     SimpleReplayBuffer,
