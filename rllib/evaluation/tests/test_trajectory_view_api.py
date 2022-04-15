@@ -5,9 +5,9 @@ import numpy as np
 import unittest
 
 import ray
-from ray.rllib.agents.callbacks import DefaultCallbacks
-import ray.rllib.agents.dqn as dqn
-import ray.rllib.agents.ppo as ppo
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
+import ray.rllib.algorithms.dqn as dqn
+import ray.rllib.algorithms.ppo as ppo
 from ray.rllib.examples.env.debug_counter_env import MultiAgentDebugCounterEnv
 from ray.rllib.examples.env.multi_agent import MultiAgentPendulum
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
