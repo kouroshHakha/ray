@@ -10,14 +10,14 @@ import os
 
 import ray
 from ray import tune
-from ray.rllib.agents import with_common_config
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.dqn.dqn import DEFAULT_CONFIG as DQN_CONFIG
-from ray.rllib.agents.dqn.dqn_tf_policy import DQNTFPolicy
-from ray.rllib.agents.dqn.dqn_torch_policy import DQNTorchPolicy
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG as PPO_CONFIG
-from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
-from ray.rllib.agents.ppo.ppo_torch_policy import PPOTorchPolicy
+from ray.rllib.algorithms import with_common_config
+from ray.rllib.algorithms.trainer import Trainer
+from ray.rllib.algorithms.dqn.dqn import DEFAULT_CONFIG as DQN_CONFIG
+from ray.rllib.algorithms.dqn.dqn_tf_policy import DQNTFPolicy
+from ray.rllib.algorithms.dqn.dqn_torch_policy import DQNTorchPolicy
+from ray.rllib.algorithms.ppo.ppo import DEFAULT_CONFIG as PPO_CONFIG
+from ray.rllib.algorithms.ppo.ppo_tf_policy import PPOTFPolicy
+from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.execution.rollout_ops import synchronous_parallel_sample
 from ray.rllib.execution.train_ops import train_one_step

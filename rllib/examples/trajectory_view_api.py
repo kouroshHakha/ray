@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 
 import ray
-from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.algorithms.ppo import PPOTrainer
 from ray.rllib.examples.env.stateless_cartpole import StatelessCartPole
 from ray.rllib.examples.models.trajectory_view_utilizing_models import (
     FrameStackingCartPoleModel,

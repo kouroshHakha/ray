@@ -3,7 +3,7 @@ import argparse
 
 import ray
 from ray import tune
-from ray.rllib.agents import ppo
+from ray.rllib.algorithms import ppo
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--train-iterations", type=int, default=10)

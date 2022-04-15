@@ -20,14 +20,14 @@ import os
 
 import ray
 from ray import tune
-from ray.rllib.agents.maml.maml_torch_policy import KLCoeffMixin as TorchKLCoeffMixin
-from ray.rllib.agents.ppo.ppo import PPOTrainer
-from ray.rllib.agents.ppo.ppo_tf_policy import (
+from ray.rllib.algorithms.maml.maml_torch_policy import KLCoeffMixin as TorchKLCoeffMixin
+from ray.rllib.algorithms.ppo import PPOTrainer
+from ray.rllib.algorithms.ppo.ppo_tf_policy import (
     PPOTFPolicy,
     KLCoeffMixin,
     ppo_surrogate_loss as tf_loss,
 )
-from ray.rllib.agents.ppo.ppo_torch_policy import PPOTorchPolicy
+from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 from ray.rllib.evaluation.postprocessing import compute_advantages, Postprocessing
 from ray.rllib.examples.env.two_step_game import TwoStepGame
 from ray.rllib.examples.models.centralized_critic_models import (

@@ -7,7 +7,7 @@ import os
 
 import ray
 from ray import tune
-from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.algorithms.ppo import PPOTrainer
 from ray.rllib.examples.env.coin_game_non_vectorized_env import CoinGame, AsymCoinGame
 
 parser = argparse.ArgumentParser()

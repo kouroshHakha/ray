@@ -5,8 +5,8 @@ import ray
 import numpy as np
 
 from ray.rllib import Policy
-from ray.rllib.agents import with_common_config
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms import with_common_config
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.execution.rollout_ops import synchronous_parallel_sample
 from ray.rllib.examples.env.parametric_actions_cartpole import ParametricActionsCartPole
 from ray.rllib.models.modelv2 import restore_original_dimensions

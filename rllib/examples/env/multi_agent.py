@@ -26,7 +26,7 @@ class BasicMultiAgent(MultiAgentEnv):
 
     def __init__(self, num):
         super().__init__()
-        self.agents = [MockEnv(25) for _ in range(num)]
+        self.algorithms = [MockEnv(25) for _ in range(num)]
         self._agent_ids = set(range(num))
         self.dones = set()
         self.observation_space = gym.spaces.Discrete(2)

@@ -2,7 +2,7 @@ import argparse
 import os
 
 import ray
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.examples.policy.bare_metal_policy_with_custom_view_reqs import (
     BareMetalPolicyWithCustomViewReqs,
 )

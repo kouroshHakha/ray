@@ -3,7 +3,7 @@ import os
 import random
 
 import ray
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.examples.models.eager_model import EagerModel
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.sample_batch import SampleBatch

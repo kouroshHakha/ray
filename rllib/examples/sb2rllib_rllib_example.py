@@ -7,7 +7,7 @@ Run example: python sb2rllib_rllib_example.py
 """
 import gym
 import ray
-import ray.rllib.agents.ppo as ppo
+import ray.rllib.algorithms.ppo as ppo
 
 # settings used for both stable baselines and rllib
 env_name = "CartPole-v1"

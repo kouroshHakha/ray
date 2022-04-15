@@ -2,7 +2,7 @@ from distutils.version import LooseVersion
 
 import numpy as np
 import ray
-import ray.rllib.agents.ppo as ppo
+import ray.rllib.algorithms.ppo as ppo
 import onnxruntime
 import os
 import shutil

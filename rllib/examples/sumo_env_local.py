@@ -19,7 +19,7 @@ from pprint import pformat
 import ray
 from ray import tune
 
-from ray.rllib.agents.ppo import ppo
+from ray.rllib.algorithms.ppo import ppo
 from ray.rllib.examples.simulators.sumo import marlenvironment
 from ray.rllib.utils.test_utils import check_learning_achieved
 

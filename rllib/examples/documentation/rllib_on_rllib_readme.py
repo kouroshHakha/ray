@@ -1,5 +1,5 @@
 import gym
-from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.algorithms.ppo import PPOTrainer
 
 
 # Define your problem using python and openAI's gym API:

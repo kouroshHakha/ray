@@ -13,8 +13,8 @@ import argparse
 import os
 
 import ray
-from ray.rllib.agents.ppo import PPOTrainer
-from ray.rllib.agents.trainer import Trainer
+from ray.rllib.algorithms.ppo import PPOTrainer
+from ray.rllib.algorithms.trainer import Trainer
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.test_utils import check_learning_achieved
 from ray import tune

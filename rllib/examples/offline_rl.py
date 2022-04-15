@@ -20,7 +20,7 @@ Use the generated file(s) as "input" in the CQL config below
 import numpy as np
 import os
 
-from ray.rllib.agents import cql as cql
+from ray.rllib.algorithms import cql as cql
 from ray.rllib.utils.framework import try_import_torch
 
 torch, _ = try_import_torch()
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # Get policy, model, and replay-buffer.
     pol = trainer.get_policy()
     cql_model = pol.model
-    from ray.rllib.agents.cql.cql import replay_buffer
+    from ray.rllib.algorithms.cql.cql import replay_buffer
 
     # If you would like to query CQL's learnt Q-function for arbitrary
     # (cont.) actions, do the following:
