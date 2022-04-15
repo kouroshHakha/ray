@@ -16,7 +16,10 @@ from ray.rllib.algorithms.impala.vtrace_torch_policy import (
     make_time_major,
     choose_optimizer,
 )
-from ray.rllib.algorithms.ppo.appo_tf_policy import make_appo_model, postprocess_trajectory
+from ray.rllib.algorithms.ppo.appo_tf_policy import (
+    make_appo_model,
+    postprocess_trajectory,
+)
 from ray.rllib.algorithms.a3c.a3c_torch_policy import ValueNetworkMixin
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.modelv2 import ModelV2

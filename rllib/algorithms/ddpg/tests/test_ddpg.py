@@ -5,7 +5,9 @@ from tempfile import TemporaryDirectory
 
 import ray
 import ray.rllib.algorithms.ddpg as ddpg
-from ray.rllib.algorithms.ddpg.ddpg_torch_policy import ddpg_actor_critic_loss as loss_torch
+from ray.rllib.algorithms.ddpg.ddpg_torch_policy import (
+    ddpg_actor_critic_loss as loss_torch,
+)
 from ray.rllib.algorithms.sac.tests.test_sac import SimpleEnv
 from ray.rllib.execution.buffers.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from ray.rllib.policy.sample_batch import SampleBatch
