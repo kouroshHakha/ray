@@ -143,7 +143,7 @@ class Policy(metaclass=ABCMeta):
         if self.config.get("callbacks"):
             self.callbacks: "DefaultCallbacks" = self.config.get("callbacks")()
         else:
-            from ray.rllib.agents.callbacks import DefaultCallbacks
+            from ray.rllib.algorithms.callbacks import DefaultCallbacks
 
             self.callbacks: "DefaultCallbacks" = DefaultCallbacks()
 
