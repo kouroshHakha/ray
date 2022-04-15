@@ -4,7 +4,7 @@ import numpy as np
 import unittest
 
 import ray
-import ray.rllib.agents.ppo as ppo
+import ray.rllib.algorithms.ppo as ppo
 from ray.rllib.models.catalog import ModelCatalog
 from ray.rllib.models.preprocessors import (
     DictFlatteningPreprocessor,
