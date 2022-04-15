@@ -27,8 +27,8 @@ def _setup_logger():
 
 
 def _register_all():
-    from ray.rllib.agents.trainer import Trainer
-    from ray.rllib.agents.registry import ALGORITHMS, get_trainer_class
+    from ray.rllib.algorithms.trainer import Trainer
+    from ray.rllib.algorithms.registry import ALGORITHMS, get_trainer_class
     from ray.rllib.contrib.registry import CONTRIBUTED_ALGORITHMS
 
     for key in (

@@ -12,7 +12,7 @@ import shelve
 
 import ray
 import ray.cloudpickle as cloudpickle
-from ray.rllib.agents.registry import get_trainer_class
+from ray.rllib.algorithms.registry import get_trainer_class
 from ray.rllib.env import MultiAgentEnv
 from ray.rllib.env.base_env import _DUMMY_AGENT_ID
 from ray.rllib.env.env_context import EnvContext
