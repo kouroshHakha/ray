@@ -8,8 +8,5 @@ __all__ = [
 ]
 
 from ray.rllib.utils.deprecation import deprecation_warning
-deprecation_warning(
-    'ray.rllib.agents.cql',
-    'ray.rllib.algorithms.cql',
-    error=False
-)
+
+deprecation_warning("ray.rllib.agents.cql", "ray.rllib.algorithms.cql", error=False)

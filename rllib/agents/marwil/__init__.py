@@ -13,8 +13,7 @@ __all__ = [
 ]
 
 from ray.rllib.utils.deprecation import deprecation_warning
+
 deprecation_warning(
-    'ray.rllib.agents.marwil',
-    'ray.rllib.algorithms.marwil',
-    error=False
+    "ray.rllib.agents.marwil", "ray.rllib.algorithms.marwil", error=False
 )

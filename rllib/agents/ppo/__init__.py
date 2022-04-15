@@ -16,8 +16,5 @@ __all__ = [
 
 
 from ray.rllib.utils.deprecation import deprecation_warning
-deprecation_warning(
-    'ray.rllib.agents.ppo',
-    'ray.rllib.algorithms.ppo',
-    error=False
-)
+
+deprecation_warning("ray.rllib.agents.ppo", "ray.rllib.algorithms.ppo", error=False)

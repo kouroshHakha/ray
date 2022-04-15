@@ -9,7 +9,10 @@ from typing import Dict, List, Tuple, Type, Union
 
 import ray
 import ray.experimental.tf_utils
-from ray.rllib.algorithms.sac.sac_tf_policy import postprocess_trajectory, validate_spaces
+from ray.rllib.algorithms.sac.sac_tf_policy import (
+    postprocess_trajectory,
+    validate_spaces,
+)
 from ray.rllib.algorithms.sac.sac_torch_policy import (
     _get_dist_class,
     stats,
