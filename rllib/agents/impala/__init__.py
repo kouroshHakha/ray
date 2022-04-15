@@ -7,8 +7,7 @@ __all__ = [
 
 
 from ray.rllib.utils.deprecation import deprecation_warning
+
 deprecation_warning(
-    'ray.rllib.agents.impala',
-    'ray.rllib.algorithms.impala',
-    error=False
+    "ray.rllib.agents.impala", "ray.rllib.algorithms.impala", error=False
 )

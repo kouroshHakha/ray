@@ -28,8 +28,5 @@ __all__ = [
 ]
 
 from ray.rllib.utils.deprecation import deprecation_warning
-deprecation_warning(
-    'ray.rllib.agents.dqn',
-    'ray.rllib.algorithms.dqn',
-    error=False
-)
+
+deprecation_warning("ray.rllib.agents.dqn", "ray.rllib.algorithms.dqn", error=False)
