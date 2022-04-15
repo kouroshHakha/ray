@@ -3,14 +3,14 @@ import sys
 import unittest
 
 import ray
-import ray.rllib.agents.a3c as a3c
-import ray.rllib.agents.ddpg as ddpg
-import ray.rllib.agents.ddpg.td3 as td3
-import ray.rllib.agents.dqn as dqn
-import ray.rllib.agents.impala as impala
-import ray.rllib.agents.pg as pg
-import ray.rllib.agents.ppo as ppo
-import ray.rllib.agents.sac as sac
+import ray.rllib.algorithms.a3c as a3c
+import ray.rllib.algorithms.ddpg as ddpg
+import ray.rllib.algorithms.ddpg.td3 as td3
+import ray.rllib.algorithms.dqn as dqn
+import ray.rllib.algorithms.impala as impala
+import ray.rllib.algorithms.pg as pg
+import ray.rllib.algorithms.ppo as ppo
+import ray.rllib.algorithms.sac as sac
 from ray.rllib.utils import check, framework_iterator
 
 

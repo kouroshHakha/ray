@@ -23,7 +23,7 @@ import sys
 import yaml
 
 import ray
-from ray.rllib.agents.registry import get_trainer_class
+from ray.rllib.algorithms.registry import get_trainer_class
 from ray.rllib.utils.debug.memory import check_memory_leaks
 from ray.rllib import _register_all
 

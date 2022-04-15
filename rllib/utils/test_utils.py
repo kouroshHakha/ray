@@ -16,7 +16,7 @@ from ray.rllib.utils.typing import PartialTrainerConfigDict
 from ray.tune import CLIReporter, run_experiments
 
 if TYPE_CHECKING:
-    from ray.rllib.agents.trainer_config import TrainerConfig
+    from ray.rllib.algorithms.trainer_config import TrainerConfig
 
 jax, _ = try_import_jax()
 tf1, tf, tfv = try_import_tf()

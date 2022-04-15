@@ -38,7 +38,7 @@ def check_multi_agent(
     policies = multiagent_config.get("policies")
 
     # Check for invalid sub-keys of multiagent config.
-    from ray.rllib.agents.trainer import COMMON_CONFIG
+    from ray.rllib.algorithms.trainer import COMMON_CONFIG
 
     allowed = list(COMMON_CONFIG["multiagent"].keys())
     if any(k not in allowed for k in multiagent_config.keys()):
