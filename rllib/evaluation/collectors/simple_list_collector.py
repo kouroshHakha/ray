@@ -47,8 +47,7 @@ def _to_float_np_array(v: List[Any]) -> np.ndarray:
 class _AgentCollector:
     """Collects samples for one agent in one trajectory (episode).
 
-    The agent may be part of a multi-agent environment. Samples are stored in
-    lists including some possible automatic "shift" buffer at the beginning to
+    The agent may be part of a multi-agent environment. Samples are stored in lists including some possible automatic "shift" buffer at the beginning to
     be able to save memory when storing things like NEXT_OBS, PREV_REWARDS,
     etc.., which are specified using the trajectory view API.
     """
