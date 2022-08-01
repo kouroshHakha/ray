@@ -376,7 +376,7 @@ class TestOPELearning(unittest.TestCase):
         random_eps = 0.8
         mixed_eps = 0.5
         expert_eps = 0.2
-        num_episodes = 32
+        num_episodes = 1000
         cls.gamma = 0.99
 
         # Config settings for FQE model
@@ -428,43 +428,6 @@ class TestOPELearning(unittest.TestCase):
     def tearDownClass(cls):
         ray.shutdown()
 
-    def test_kh_random_data(self):
-
-        print("random_policy on random_data")
-        check_estimate(
-            estimator_cls=DirectMethod,
-            gamma=self.gamma,
-            q_model_config=self.q_model_config,
-            policy=self.random_policy,
-            batch=self.random_batch,
-            mean_ret=self.random_reward,
-            std_ret=self.random_std,
-        )
-
-        print("mixed_policy on random_data")
-        check_estimate(
-            estimator_cls=DirectMethod,
-            gamma=self.gamma,
-            q_model_config=self.q_model_config,
-            policy=self.mixed_policy,
-            batch=self.random_batch,
-            mean_ret=self.mixed_reward,
-            std_ret=self.mixed_std,
-        )
-
-        print("expert_policy on random_data")
-        check_estimate(
-            estimator_cls=DirectMethod,
-            gamma=self.gamma,
-            q_model_config=self.q_model_config,
-            policy=self.expert_policy,
-            batch=self.random_batch,
-            mean_ret=self.expert_reward,
-            std_ret=self.expert_std,
-        )
-
-        breakpoint()
-
     def test_dm_random_policy_random_data(self):
         print("Test DirectMethod on random policy on random dataset")
         check_estimate(
@@ -489,10 +452,10 @@ class TestOPELearning(unittest.TestCase):
             std_ret=self.random_std,
         )
 
-    @unittest.skip(
-        "Skipped out due to flakiness; makes sense since expert episodes"
-        "are shorter than random ones, increasing the variance of the estimate"
-    )
+    # @unittest.skip(
+    #     "Skipped out due to flakiness; makes sense since expert episodes"
+    #     "are shorter than random ones, increasing the variance of the estimate"
+    # )
     def test_dm_random_policy_expert_data(self):
         print("Test DirectMethod on random policy on expert dataset")
         check_estimate(
@@ -601,10 +564,10 @@ class TestOPELearning(unittest.TestCase):
             std_ret=self.random_std,
         )
 
-    @unittest.skip(
-        "Skipped out due to flakiness; makes sense since expert episodes"
-        "are shorter than random ones, increasing the variance of the estimate"
-    )
+    # @unittest.skip(
+    #     "Skipped out due to flakiness; makes sense since expert episodes"
+    #     "are shorter than random ones, increasing the variance of the estimate"
+    # )
     def test_dr_random_policy_expert_data(self):
         print("Test DoublyRobust on  random policy on expert dataset")
         check_estimate(
