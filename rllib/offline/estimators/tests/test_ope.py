@@ -10,7 +10,7 @@ from ray.rllib.algorithms import AlgorithmConfig
 from ray.rllib.algorithms.dqn import DQNConfig
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.examples.env.cliff_walking_wall_env import CliffWalkingWallEnv
-from ray.rllib.examples.policy.cliff_walking_wall_policy import CliffWalkingWallPolicy
+from ray.rllib.examples.policy.cliff_walking_wall_policy import CliffWalkingPolicy
 from ray.rllib.execution.rollout_ops import synchronous_parallel_sample
 from ray.rllib.offline.dataset_reader import DatasetReader
 from ray.rllib.offline.estimators import (
@@ -148,7 +148,7 @@ class TestFQE(unittest.TestCase):
     def setUpClass(cls) -> None:
         ray.init()
         env = CliffWalkingWallEnv()
-        cls.policy = CliffWalkingWallPolicy(
+        cls.policy = CliffWalkingPolicy(
             observation_space=env.observation_space,
             action_space=env.action_space,
             config={},
@@ -301,12 +301,12 @@ def get_cliff_walking_wall_policy_and_data(
     )
 
     env = CliffWalkingWallEnv()
-    policy = CliffWalkingWallPolicy(
+    policy = CliffWalkingPolicy(
         env.observation_space, env.action_space, {"epsilon": epsilon}
     )
     workers = WorkerSet(
         env_creator=lambda env_config: CliffWalkingWallEnv(),
-        policy_class=CliffWalkingWallPolicy,
+        policy_class=CliffWalkingPolicy,
         trainer_config=config.to_dict(),
         num_workers=8,
     )
@@ -349,7 +349,9 @@ def check_estimate(
     estimates = estimator.estimate(batch)
     est_mean = estimates["v_target"]
     est_std = estimates["v_target_std"]
-    print(f"{est_mean:.2f}, {est_std:.2f}, {mean_ret:.2f}, {std_ret:.2f}, {loss:.2f}")
+    # print(f"{est_mean:.2f}, {est_std:.2f}, {mean_ret:.2f}, {std_ret:.2f}, {loss:.2f}")
+    print(f"est_mean: {est_mean:.2f}, est_std: {est_std:.2f}, mean_ret: {mean_ret:.2f}, std_ret: {std_ret:.2f}, loss: {loss:.2f}")
+    return
     # Assert that the two mean +- stddev intervals overlap
     assert (
         est_mean - est_std <= mean_ret + std_ret
@@ -422,6 +424,44 @@ class TestOPELearning(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         ray.shutdown()
+
+
+    def test_kh_random_data(self):
+
+        print('random_policy on random_data')
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.random_policy,
+            batch=self.random_batch,
+            mean_ret=self.random_reward,
+            std_ret=self.random_std,
+        )
+
+        print('mixed_policy on random_data')
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.mixed_policy,
+            batch=self.random_batch,
+            mean_ret=self.mixed_reward,
+            std_ret=self.mixed_std,
+        )
+
+        print('expert_policy on random_data')
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.expert_policy,
+            batch=self.random_batch,
+            mean_ret=self.expert_reward,
+            std_ret=self.expert_std,
+        )
+
+        breakpoint()
 
     def test_dm_random_policy_random_data(self):
         print("Test DirectMethod on random policy on random dataset")
