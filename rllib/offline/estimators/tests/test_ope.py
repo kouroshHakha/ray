@@ -350,7 +350,10 @@ def check_estimate(
     est_mean = estimates["v_target"]
     est_std = estimates["v_target_std"]
     # print(f"{est_mean:.2f}, {est_std:.2f}, {mean_ret:.2f}, {std_ret:.2f}, {loss:.2f}")
-    print(f"est_mean: {est_mean:.2f}, est_std: {est_std:.2f}, mean_ret: {mean_ret:.2f}, std_ret: {std_ret:.2f}, loss: {loss:.2f}")
+    print(
+        f"est_mean: {est_mean:.2f}, est_std: {est_std:.2f}, mean_ret: {mean_ret:.2f}, "
+        f"std_ret: {std_ret:.2f}, loss: {loss:.2f}"
+    )
     return
     # Assert that the two mean +- stddev intervals overlap
     assert (
@@ -425,10 +428,9 @@ class TestOPELearning(unittest.TestCase):
     def tearDownClass(cls):
         ray.shutdown()
 
-
     def test_kh_random_data(self):
 
-        print('random_policy on random_data')
+        print("random_policy on random_data")
         check_estimate(
             estimator_cls=DirectMethod,
             gamma=self.gamma,
@@ -439,7 +441,7 @@ class TestOPELearning(unittest.TestCase):
             std_ret=self.random_std,
         )
 
-        print('mixed_policy on random_data')
+        print("mixed_policy on random_data")
         check_estimate(
             estimator_cls=DirectMethod,
             gamma=self.gamma,
@@ -450,7 +452,7 @@ class TestOPELearning(unittest.TestCase):
             std_ret=self.mixed_std,
         )
 
-        print('expert_policy on random_data')
+        print("expert_policy on random_data")
         check_estimate(
             estimator_cls=DirectMethod,
             gamma=self.gamma,
