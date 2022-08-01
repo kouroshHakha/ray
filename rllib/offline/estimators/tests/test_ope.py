@@ -1,48 +1,60 @@
+import copy
+import os
 import unittest
-import ray
+from pathlib import Path
+from typing import Type, Union, Dict, Tuple
+
+import numpy as np
+from ray.data import read_json
+from ray.rllib.algorithms import AlgorithmConfig
 from ray.rllib.algorithms.dqn import DQNConfig
+from ray.rllib.evaluation.worker_set import WorkerSet
+from ray.rllib.examples.env.cliff_walking_wall_env import CliffWalkingWallEnv
+from ray.rllib.examples.policy.cliff_walking_wall_policy import CliffWalkingWallPolicy
+from ray.rllib.execution.rollout_ops import synchronous_parallel_sample
+from ray.rllib.offline.dataset_reader import DatasetReader
 from ray.rllib.offline.estimators import (
-    ImportanceSampling,
-    WeightedImportanceSampling,
     DirectMethod,
     DoublyRobust,
+    ImportanceSampling,
+    WeightedImportanceSampling,
 )
 from ray.rllib.offline.estimators.fqe_torch_model import FQETorchModel
-from ray.rllib.offline.json_reader import JsonReader
-from ray.rllib.policy.sample_batch import concat_samples
-from ray.rllib.utils.test_utils import check
+from ray.rllib.policy import Policy
+from ray.rllib.policy.sample_batch import SampleBatch, concat_samples
+from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.numpy import convert_to_numpy
-from pathlib import Path
-import os
-import copy
-import numpy as np
-import gym
-import torch
+from ray.rllib.utils.test_utils import check
+
+import ray
+
+torch, _ = try_import_torch()
 
 
 class TestOPE(unittest.TestCase):
+    """Compilation tests for using OPE both standalone and in an RLlib Algorithm"""
+
     @classmethod
     def setUpClass(cls):
         ray.init()
         rllib_dir = Path(__file__).parent.parent.parent.parent
-        train_data = os.path.join(rllib_dir, "tests/data/cartpole/large.json")
+        train_data = os.path.join(rllib_dir, "tests/data/cartpole/small.json")
         eval_data = train_data
 
         env_name = "CartPole-v0"
         cls.gamma = 0.99
-        n_episodes = 40
-        cls.q_model_config = {"n_iters": 600}
+        n_episodes = 3
+        cls.q_model_config = {"n_iters": 160}
 
         config = (
             DQNConfig()
             .environment(env=env_name)
-            .training(gamma=cls.gamma)
-            .rollouts(num_rollout_workers=3, batch_mode="complete_episodes")
+            .rollouts(batch_mode="complete_episodes")
             .framework("torch")
             .resources(num_gpus=int(os.environ.get("RLLIB_NUM_GPUS", 0)))
             .offline_data(input_=train_data)
             .evaluation(
-                evaluation_interval=None,
+                evaluation_interval=1,
                 evaluation_duration=n_episodes,
                 evaluation_num_workers=1,
                 evaluation_duration_unit="episodes",
@@ -50,137 +62,143 @@ class TestOPE(unittest.TestCase):
                 off_policy_estimation_methods={
                     "is": {"type": ImportanceSampling},
                     "wis": {"type": WeightedImportanceSampling},
-                    "dm_fqe": {
-                        "type": DirectMethod,
-                        "q_model_config": {"type": FQETorchModel},
-                    },
-                    "dr_fqe": {
-                        "type": DoublyRobust,
-                        "q_model_config": {"type": FQETorchModel},
-                    },
+                    "dm_fqe": {"type": DirectMethod},
+                    "dr_fqe": {"type": DoublyRobust},
                 },
             )
         )
         cls.algo = config.build()
 
-        # Train DQN for evaluation policy
-        for _ in range(n_episodes):
-            cls.algo.train()
-
         # Read n_episodes of data, assuming that one line is one episode
-        reader = JsonReader(eval_data)
-        cls.batch = reader.next()
-        for _ in range(n_episodes - 1):
-            cls.batch = concat_samples([cls.batch, reader.next()])
+        reader = DatasetReader(read_json(eval_data))
+        batches = [reader.next() for _ in range(n_episodes)]
+        cls.batch = concat_samples(batches)
         cls.n_episodes = len(cls.batch.split_by_episode())
         print("Episodes:", cls.n_episodes, "Steps:", cls.batch.count)
 
-        cls.mean_ret = {}
-        cls.std_ret = {}
-        cls.losses = {}
-
-        # Simulate Monte-Carlo rollouts
-        mc_ret = []
-        env = gym.make(env_name)
-        for _ in range(n_episodes):
-            obs = env.reset()
-            done = False
-            rewards = []
-            while not done:
-                act = cls.algo.compute_single_action(obs)
-                obs, reward, done, _ = env.step(act)
-                rewards.append(reward)
-            ret = 0
-            for r in reversed(rewards):
-                ret = r + cls.gamma * ret
-            mc_ret.append(ret)
-
-        cls.mean_ret["simulation"] = np.mean(mc_ret)
-        cls.std_ret["simulation"] = np.std(mc_ret)
-
     @classmethod
     def tearDownClass(cls):
-        print("Standalone OPE results")
-        print("Mean:")
-        print(*list(cls.mean_ret.items()), sep="\n")
-        print("Stddev:")
-        print(*list(cls.std_ret.items()), sep="\n")
-        print("Losses:")
-        print(*list(cls.losses.items()), sep="\n")
         ray.shutdown()
 
-    def test_is(self):
-        name = "is"
+    def test_ope_standalone(self):
+        # Test all OPE methods standalone
         estimator = ImportanceSampling(
             policy=self.algo.get_policy(),
             gamma=self.gamma,
         )
         estimates = estimator.estimate(self.batch)
-        self.mean_ret[name] = estimates["v_target"]
-        self.std_ret[name] = estimates["v_target_std"]
+        assert estimates is not None, "IS estimator did not compute estimates"
 
-    def test_wis(self):
-        name = "wis"
         estimator = WeightedImportanceSampling(
             policy=self.algo.get_policy(),
             gamma=self.gamma,
         )
         estimates = estimator.estimate(self.batch)
-        self.mean_ret[name] = estimates["v_target"]
-        self.std_ret[name] = estimates["v_target_std"]
+        assert estimates is not None, "WIS estimator did not compute estimates"
 
-    def test_dm_fqe(self):
-        name = "dm_fqe"
         estimator = DirectMethod(
             policy=self.algo.get_policy(),
             gamma=self.gamma,
-            q_model_config={"type": FQETorchModel, **self.q_model_config},
+            q_model_config=self.q_model_config,
         )
-        self.losses[name] = estimator.train(self.batch)
+        losses = estimator.train(self.batch)
+        assert losses, "DM estimator did not return mean loss"
         estimates = estimator.estimate(self.batch)
-        self.mean_ret[name] = estimates["v_target"]
-        self.std_ret[name] = estimates["v_target_std"]
+        assert estimates is not None, "DM estimator did not compute estimates"
 
-    def test_dr_fqe(self):
-        name = "dr_fqe"
         estimator = DoublyRobust(
             policy=self.algo.get_policy(),
             gamma=self.gamma,
-            q_model_config={"type": FQETorchModel, **self.q_model_config},
+            q_model_config=self.q_model_config,
         )
-        self.losses[name] = estimator.train(self.batch)
+        losses = estimator.train(self.batch)
+        assert losses, "DM estimator did not return mean loss"
         estimates = estimator.estimate(self.batch)
-        self.mean_ret[name] = estimates["v_target"]
-        self.std_ret[name] = estimates["v_target_std"]
+        assert estimates is not None, "DM estimator did not compute estimates"
 
     def test_ope_in_algo(self):
-        results = self.algo.evaluate()
-        print("OPE in Algorithm results")
-        estimates = results["evaluation"]["off_policy_estimator"]
-        mean_est = {k: v["v_target"] for k, v in estimates.items()}
-        std_est = {k: v["v_target_std"] for k, v in estimates.items()}
+        # Test OPE in DQN, during training as well as by calling evaluate()
+        results = self.algo.train()
+        ope_results = results["evaluation"]["off_policy_estimator"]
+        # Check that key exists AND is not {}
+        assert ope_results, "Did not run OPE in training!"
+        assert set(ope_results.keys()) == {
+            "is",
+            "wis",
+            "dm_fqe",
+            "dr_fqe",
+        }, "Missing keys in OPE result dict"
 
-        print("Mean:")
-        print(*list(mean_est.items()), sep="\n")
-        print("Stddev:")
-        print(*list(std_est.items()), sep="\n")
-        print("\n\n\n")
+        # Check algo.evaluate() manually as well
+        results = self.algo.train()
+        ope_results = results["evaluation"]["off_policy_estimator"]
+        assert ope_results, "Did not run OPE on call to Algorithm.evaluate()!"
+        assert set(ope_results.keys()) == {
+            "is",
+            "wis",
+            "dm_fqe",
+            "dr_fqe",
+        }, "Missing keys in OPE result dict"
 
-    def test_fqe_model(self):
+
+class TestFQE(unittest.TestCase):
+    """Compilation and learning tests for the Fitted-Q Evaluation model"""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        ray.init()
+        env = CliffWalkingWallEnv()
+        cls.policy = CliffWalkingWallPolicy(
+            observation_space=env.observation_space,
+            action_space=env.action_space,
+            config={},
+        )
+        cls.gamma = 0.99
+        # Collect single episode under optimal policy
+        obs_batch = []
+        new_obs = []
+        actions = []
+        action_prob = []
+        rewards = []
+        dones = []
+        obs = env.reset()
+        done = False
+        while not done:
+            obs_batch.append(obs)
+            act, _, extra = cls.policy.compute_single_action(obs)
+            actions.append(act)
+            action_prob.append(extra["action_prob"])
+            obs, rew, done, _ = env.step(act)
+            new_obs.append(obs)
+            rewards.append(rew)
+            dones.append(done)
+        cls.batch = SampleBatch(
+            obs=obs_batch,
+            actions=actions,
+            action_prob=action_prob,
+            rewards=rewards,
+            dones=dones,
+            new_obs=new_obs,
+        )
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        ray.shutdown()
+
+    def test_fqe_compilation_and_stopping(self):
         # Test FQETorchModel for:
         # (1) Check that it does not modify the underlying batch during training
-        # (2) Check that the stoppign criteria from FQE are working correctly
+        # (2) Check that the stopping criteria from FQE are working correctly
         # (3) Check that using fqe._compute_action_probs equals brute force
         # iterating over all actions with policy.compute_log_likelihoods
         fqe = FQETorchModel(
-            policy=self.algo.get_policy(),
+            policy=self.policy,
             gamma=self.gamma,
-            **self.q_model_config,
         )
         tmp_batch = copy.deepcopy(self.batch)
         losses = fqe.train(self.batch)
 
-        # Make sure FQETorchModel.train() does not modify self.batch
+        # Make sure FQETorchModel.train() does not modify the batch
         check(tmp_batch, self.batch)
 
         # Make sure FQE stopping criteria are respected
@@ -199,22 +217,440 @@ class TestOPE(unittest.TestCase):
         tmp_probs = []
         for act in range(fqe.policy.action_space.n):
             tmp_actions = np.zeros_like(self.batch["actions"]) + act
-            log_probs = fqe.policy.compute_log_likelihoods(
+            log_probs = self.policy.compute_log_likelihoods(
                 actions=tmp_actions,
                 obs_batch=self.batch["obs"],
             )
-            tmp_probs.append(torch.exp(log_probs))
-        tmp_probs = torch.stack(tmp_probs).transpose(0, 1)
-        tmp_probs = convert_to_numpy(tmp_probs)
+            tmp_probs.append(np.exp(log_probs))
+        tmp_probs = np.stack(tmp_probs).T
         check(action_probs, tmp_probs, decimals=3)
 
-    def test_multiple_inputs(self):
-        # TODO (Rohan138): Test with multiple input files
-        pass
+    def test_fqe_optimal_convergence(self):
+        # Optimal CliffWalkingWallPolicy with epsilon = 0.0
+        # and CliffWalkingWallEnv are deterministic;
+        # check that FQE converges to the true Q-values for self.batch
+        q_vals = [
+            -2.50,
+            -1.51,
+            -0.52,
+            0.49,
+            1.50,
+            2.53,
+            3.56,
+            4.61,
+            5.67,
+            6.73,
+            7.81,
+            8.90,
+            10.00,
+        ]
+        q_model_config = {
+            "tau": 1.0,
+            "model": {
+                "fcnet_hiddens": [],
+                "activation": "linear",
+            },
+            "lr": 0.01,
+            "n_iters": 5000,
+            "delta": 1e-3,
+        }
+
+        fqe = FQETorchModel(
+            policy=self.policy,
+            gamma=self.gamma,
+            **q_model_config,
+        )
+        losses = fqe.train(self.batch)
+        print(losses[-10:])
+        assert losses[-1] < fqe.delta, "FQE loss did not converge!"
+        estimates = fqe.estimate_v(self.batch)
+        print(estimates)
+        check(
+            estimates,
+            q_vals,
+            decimals=1,
+        )
+
+
+def get_cliff_walking_wall_policy_and_data(
+    num_episodes: int,
+    gamma: float,
+    epsilon: float,
+) -> Tuple[Policy, SampleBatch, float, float]:
+    """Collect a cliff_walking_wall policy and data with epsilon-greedy exploration.
+
+    Args:
+        num_episodes: Number of episodes to collect
+        gamma: discount factor
+        epsilon: epsilon-greedy exploration value
+
+    Returns:
+        A Tuple consisting of:
+          - A CliffWalkingWallPolicy with exploration parameter epsilon
+          - A SampleBatch of `num_episodes` CliffWalkingWall episodes collected using
+          epsilon-greedy exploration
+          - The mean of the discounted return over the collected episodes
+          - The stddev of the discounted return over the collected episodes
+
+    """
+    config = (
+        AlgorithmConfig()
+        .rollouts(batch_mode="complete_episodes")
+        .environment(disable_env_checking=True)
+        .experimental(_disable_preprocessor_api=True)
+    )
+
+    env = CliffWalkingWallEnv()
+    policy = CliffWalkingWallPolicy(
+        env.observation_space, env.action_space, {"epsilon": epsilon}
+    )
+    workers = WorkerSet(
+        env_creator=lambda env_config: CliffWalkingWallEnv(),
+        policy_class=CliffWalkingWallPolicy,
+        trainer_config=config.to_dict(),
+        num_workers=8,
+    )
+    workers.foreach_policy(func=lambda policy, _: policy.update_epsilon(epsilon))
+    ep_ret = []
+    batches = []
+    n_eps = 0
+    while n_eps < num_episodes:
+        batch = synchronous_parallel_sample(worker_set=workers)
+        for episode in batch.split_by_episode():
+            ret = 0
+            for r in episode[SampleBatch.REWARDS][::-1]:
+                ret = r + gamma * ret
+            ep_ret.append(ret)
+            n_eps += 1
+        batches.append(batch)
+    workers.stop()
+    return policy, concat_samples(batches), np.mean(ep_ret), np.std(ep_ret)
+
+
+def check_estimate(
+    *,
+    estimator_cls: Type[Union[DirectMethod, DoublyRobust]],
+    gamma: float,
+    q_model_config: Dict,
+    policy: Policy,
+    batch: SampleBatch,
+    mean_ret: float,
+    std_ret: float,
+) -> None:
+    # Train and estimate an estimator using the given batch and policy.
+    # Assert that the 1 stddev intervals for the estimated mean return
+    # and the actual mean return overlap.
+    estimator = estimator_cls(
+        policy=policy,
+        gamma=gamma,
+        q_model_config=q_model_config,
+    )
+    loss = estimator.train(batch)["loss"]
+    estimates = estimator.estimate(batch)
+    est_mean = estimates["v_target"]
+    est_std = estimates["v_target_std"]
+    print(f"{est_mean:.2f}, {est_std:.2f}, {mean_ret:.2f}, {std_ret:.2f}, {loss:.2f}")
+    # Assert that the two mean +- stddev intervals overlap
+    assert (
+        est_mean - est_std <= mean_ret + std_ret
+        and mean_ret - std_ret <= est_mean + est_std
+    ), (
+        f"DirectMethod estimate {est_mean:.2f} with stddev "
+        f"{est_std:.2f} does not converge to true discounted return "
+        f"{mean_ret:.2f} with stddev {std_ret:.2f}!"
+    )
+
+
+class TestOPELearning(unittest.TestCase):
+    """Learning tests for the DirectMethod and DoublyRobust estimators"""
+
+    @classmethod
+    def setUpClass(cls):
+        ray.init()
+        # Epsilon-greedy exploration values
+        random_eps = 0.8
+        mixed_eps = 0.5
+        expert_eps = 0.2
+        num_episodes = 32
+        cls.gamma = 0.99
+
+        # Config settings for FQE model
+        cls.q_model_config = {
+            "n_iters": 600,
+            "minibatch_size": 32,
+            "tau": 1.0,
+            "model": {
+                "fcnet_hiddens": [],
+                "activation": "linear",
+            },
+            "lr": 0.01,
+        }
+
+        (
+            cls.random_policy,
+            cls.random_batch,
+            cls.random_reward,
+            cls.random_std,
+        ) = get_cliff_walking_wall_policy_and_data(num_episodes, cls.gamma, random_eps)
+        print(
+            f"Collected random batch of {cls.random_batch.count} steps "
+            f"with return {cls.random_reward} stddev {cls.random_std}"
+        )
+
+        (
+            cls.mixed_policy,
+            cls.mixed_batch,
+            cls.mixed_reward,
+            cls.mixed_std,
+        ) = get_cliff_walking_wall_policy_and_data(num_episodes, cls.gamma, mixed_eps)
+        print(
+            f"Collected mixed batch of {cls.mixed_batch.count} steps "
+            f"with return {cls.mixed_reward} stddev {cls.mixed_std}"
+        )
+
+        (
+            cls.expert_policy,
+            cls.expert_batch,
+            cls.expert_reward,
+            cls.expert_std,
+        ) = get_cliff_walking_wall_policy_and_data(num_episodes, cls.gamma, expert_eps)
+        print(
+            f"Collected expert batch of {cls.expert_batch.count} steps "
+            f"with return {cls.expert_reward} stddev {cls.expert_std}"
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        ray.shutdown()
+
+    def test_dm_random_policy_random_data(self):
+        print("Test DirectMethod on random policy on random dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.random_policy,
+            batch=self.random_batch,
+            mean_ret=self.random_reward,
+            std_ret=self.random_std,
+        )
+
+    def test_dm_random_policy_mixed_data(self):
+        print("Test DirectMethod on random policy on mixed dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.random_policy,
+            batch=self.mixed_batch,
+            mean_ret=self.random_reward,
+            std_ret=self.random_std,
+        )
+
+    @unittest.skip(
+        "Skipped out due to flakiness; makes sense since expert episodes"
+        "are shorter than random ones, increasing the variance of the estimate"
+    )
+    def test_dm_random_policy_expert_data(self):
+        print("Test DirectMethod on random policy on expert dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.random_policy,
+            batch=self.expert_batch,
+            mean_ret=self.random_reward,
+            std_ret=self.random_std,
+        )
+
+    def test_dm_mixed_policy_random_data(self):
+        print("Test DirectMethod on mixed policy on random dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.mixed_policy,
+            batch=self.random_batch,
+            mean_ret=self.mixed_reward,
+            std_ret=self.mixed_std,
+        )
+
+    def test_dm_mixed_policy_mixed_data(self):
+        print("Test DirectMethod on mixed policy on mixed dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.mixed_policy,
+            batch=self.mixed_batch,
+            mean_ret=self.mixed_reward,
+            std_ret=self.mixed_std,
+        )
+
+    def test_dm_mixed_policy_expert_data(self):
+        print("Test DirectMethod on mixed policy on expert dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.mixed_policy,
+            batch=self.expert_batch,
+            mean_ret=self.mixed_reward,
+            std_ret=self.mixed_std,
+        )
+
+    def test_dm_expert_policy_random_data(self):
+        print("Test DirectMethod on expert policy on random dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.expert_policy,
+            batch=self.random_batch,
+            mean_ret=self.expert_reward,
+            std_ret=self.expert_std,
+        )
+
+    def test_dm_expert_policy_mixed_data(self):
+        print("Test DirectMethod on expert policy on mixed dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.expert_policy,
+            batch=self.mixed_batch,
+            mean_ret=self.expert_reward,
+            std_ret=self.expert_std,
+        )
+
+    def test_dm_expert_policy_expert_data(self):
+        print("Test DirectMethod on expert policy on expert dataset")
+        check_estimate(
+            estimator_cls=DirectMethod,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.expert_policy,
+            batch=self.expert_batch,
+            mean_ret=self.expert_reward,
+            std_ret=self.expert_std,
+        )
+
+    def test_dr_random_policy_random_data(self):
+        print("Test DoublyRobust on random policy on random dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.random_policy,
+            batch=self.random_batch,
+            mean_ret=self.random_reward,
+            std_ret=self.random_std,
+        )
+
+    def test_dr_random_policy_mixed_data(self):
+        print("Test DoublyRobust on random policy on mixed dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.random_policy,
+            batch=self.mixed_batch,
+            mean_ret=self.random_reward,
+            std_ret=self.random_std,
+        )
+
+    @unittest.skip(
+        "Skipped out due to flakiness; makes sense since expert episodes"
+        "are shorter than random ones, increasing the variance of the estimate"
+    )
+    def test_dr_random_policy_expert_data(self):
+        print("Test DoublyRobust on  random policy on expert dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.random_policy,
+            batch=self.expert_batch,
+            mean_ret=self.random_reward,
+            std_ret=self.random_std,
+        )
+
+    def test_dr_mixed_policy_random_data(self):
+        print("Test DoublyRobust on  mixed policy on random dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.mixed_policy,
+            batch=self.random_batch,
+            mean_ret=self.mixed_reward,
+            std_ret=self.mixed_std,
+        )
+
+    def test_dr_mixed_policy_mixed_data(self):
+        print("Test DoublyRobust on  mixed policy on mixed dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.mixed_policy,
+            batch=self.mixed_batch,
+            mean_ret=self.mixed_reward,
+            std_ret=self.mixed_std,
+        )
+
+    def test_dr_mixed_policy_expert_data(self):
+        print("Test DoublyRobust on  mixed policy on expert dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.mixed_policy,
+            batch=self.expert_batch,
+            mean_ret=self.mixed_reward,
+            std_ret=self.mixed_std,
+        )
+
+    def test_dr_expert_policy_random_data(self):
+        print("Test DoublyRobust on  expert policy on random dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.expert_policy,
+            batch=self.random_batch,
+            mean_ret=self.expert_reward,
+            std_ret=self.expert_std,
+        )
+
+    def test_dr_expert_policy_mixed_data(self):
+        print("Test DoublyRobust on  expert policy on mixed dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.expert_policy,
+            batch=self.mixed_batch,
+            mean_ret=self.expert_reward,
+            std_ret=self.expert_std,
+        )
+
+    def test_dr_expert_policy_expert_data(self):
+        print("Test DoublyRobust on  expert policy on expert dataset")
+        check_estimate(
+            estimator_cls=DoublyRobust,
+            gamma=self.gamma,
+            q_model_config=self.q_model_config,
+            policy=self.expert_policy,
+            batch=self.expert_batch,
+            mean_ret=self.expert_reward,
+            std_ret=self.expert_std,
+        )
 
 
 if __name__ == "__main__":
-    import pytest
     import sys
+
+    import pytest
 
     sys.exit(pytest.main(["-v", __file__]))

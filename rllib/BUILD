@@ -1713,9 +1713,9 @@ py_test(
 py_test(
     name = "test_ope",
     tags = ["team:rllib", "offline", "torch_only", "gpu"],
-    size = "large",
+    size = "medium",
     srcs = ["offline/estimators/tests/test_ope.py"],
-    data = ["tests/data/cartpole/large.json"],
+    data = ["tests/data/cartpole/small.json"],
 )
 
 # --------------------------------------------------------------------
