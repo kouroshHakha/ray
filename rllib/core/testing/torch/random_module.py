@@ -48,6 +48,6 @@ class RandomTorchRLModule(TorchRLModule):
     def __get_fwd_output(self, batch):
         return {
             "action_dist": TorchDeterministic(
-                loc=torch.from_numpy(self.action_space.sample())[None] # batched
+                loc=torch.from_numpy(self.action_space.sample())[None]  # batched
             ),
         }

@@ -3,7 +3,10 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from ray.rllib.env.base_env import _DUMMY_AGENT_ID
-from ray.rllib.evaluation.collectors.rlm_trajectory_collector import RLModuleTrajectoryCollector, MultiAgentRLModuleTrajectoryCollector
+from ray.rllib.evaluation.collectors.rlm_trajectory_collector import (
+    RLModuleTrajectoryCollector,
+    MultiAgentRLModuleTrajectoryCollector,
+)
 from ray.rllib.evaluation.collectors.agent_collector import AgentCollector
 from ray.rllib.policy.policy_map import PolicyMap
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -20,7 +23,7 @@ if TYPE_CHECKING:
 @DeveloperAPI
 class EpisodeV3:
     """Tracks the current state of a (possibly multi-agent) episode.
-    
+
     This is compatible with the new RLModule API.
     """
 

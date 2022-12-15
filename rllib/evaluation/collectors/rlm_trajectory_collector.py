@@ -28,8 +28,6 @@ from ray.util.debug import log_once
 from ray.rllib.core.rl_module.marl_module import MultiAgentRLModule
 
 
-
-
 class RLModuleTrajectoryCollector:
     """Collects already postprocessed (single agent) trajectories for one RLModule.
 
@@ -92,7 +90,6 @@ class RLModuleTrajectoryCollector:
 
 
 class MultiAgentRLModuleTrajectoryCollector:
-    
     def __init__(self, marl_module: MultiAgentRLModule):
         self.policy_collectors = {
             mid: RLModuleTrajectoryCollector() for mid in marl_module
@@ -102,4 +99,3 @@ class MultiAgentRLModuleTrajectoryCollector:
         # Total agent steps (1 agent-step=1 individual agent (out of N)
         # stepped).
         self.agent_steps = 0
-

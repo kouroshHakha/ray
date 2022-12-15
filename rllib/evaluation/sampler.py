@@ -231,7 +231,7 @@ class SyncSampler(SamplerInput):
         )
         if not sample_collector_class:
             sample_collector_class = SimpleListCollector
-        
+
         self.render = render
 
         if worker.config.enable_connectors:

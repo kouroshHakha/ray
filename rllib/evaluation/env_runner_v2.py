@@ -35,7 +35,9 @@ from ray.rllib.utils.typing import (
     TensorStructType,
 )
 from ray.util.debug import log_once
-from ray.rllib.evaluation.collectors.rlm_trajectory_collector import MultiAgentRLModuleTrajectoryCollector
+from ray.rllib.evaluation.collectors.rlm_trajectory_collector import (
+    MultiAgentRLModuleTrajectoryCollector,
+)
 
 if TYPE_CHECKING:
     from gym.envs.classic_control.rendering import SimpleImageViewer
@@ -257,9 +259,9 @@ class EnvRunnerV2:
 
         # Keeps track of active episodes.
         self._active_episodes: Dict[EnvID, Union[EpisodeV2, EpisodeV3]] = {}
-        self._batch_builders: Dict[EnvID, Union[_PolicyCollectorGroup, MultiAgentRLModuleTrajectoryCollector]] = _NewDefaultDict(
-            self._new_batch_builder
-        )
+        self._batch_builders: Dict[
+            EnvID, Union[_PolicyCollectorGroup, MultiAgentRLModuleTrajectoryCollector]
+        ] = _NewDefaultDict(self._new_batch_builder)
 
         self._large_batch_threshold: int = (
             max(MIN_LARGE_BATCH_THRESHOLD, self._rollout_fragment_length * 10)
@@ -310,7 +312,9 @@ class EnvRunnerV2:
             episode=episode,
         )
 
-    def _new_batch_builder(self, _) -> Union[_PolicyCollectorGroup, MultiAgentRLModuleTrajectoryCollector]:
+    def _new_batch_builder(
+        self, _
+    ) -> Union[_PolicyCollectorGroup, MultiAgentRLModuleTrajectoryCollector]:
         """Create a new batch builder.
 
         We create a _PolicyCollectorGroup based on the full policy_map
@@ -850,7 +854,6 @@ class EnvRunnerV2:
                 worker=self._worker,
                 callbacks=self._callbacks,
             )
-            
 
         # Call `on_episode_created()` callback.
         self._callbacks.on_episode_created(
