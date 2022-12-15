@@ -105,7 +105,7 @@ class TestRolloutWorker(unittest.TestCase):
         # TODO (Kourosh): Remove the test_basic when the API is stable.
         config = (
             AlgorithmConfig()
-            .rollouts(num_rollout_workers=0)
+            .rollouts(num_rollout_workers=0, enable_connectors=True)
             .rl_module(
                 rl_module_class=RandomTorchRLModule,
                 _enable_rl_module_api=True,  # TODO (Kourosh): Remove this.
@@ -120,6 +120,7 @@ class TestRolloutWorker(unittest.TestCase):
 
         ma_batch = ev.sample()
         batch = convert_ma_batch_to_sample_batch(ma_batch)
+        breakpoint()
 
     def test_basic(self):
         ev = RolloutWorker(

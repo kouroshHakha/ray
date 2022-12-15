@@ -43,7 +43,7 @@ def _get_module_configs(config: Dict[str, Any]):
 
 
 @PublicAPI(stability="alpha")
-class MultiAgentRLModule(RLModule):
+class MultiAgentRLModule(RLModule, dict):
     """Base class for multi-agent RLModules.
 
     This class holds a mapping from module_ids to the underlying RLModules. It provides

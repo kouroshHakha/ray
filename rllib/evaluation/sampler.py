@@ -231,14 +231,7 @@ class SyncSampler(SamplerInput):
         )
         if not sample_collector_class:
             sample_collector_class = SimpleListCollector
-        self.sample_collector = sample_collector_class(
-            worker.policy_map,
-            clip_rewards,
-            callbacks,
-            multiple_episodes_in_batch,
-            rollout_fragment_length,
-            count_steps_by=count_steps_by,
-        )
+        
         self.render = render
 
         if worker.config.enable_connectors:
@@ -257,6 +250,14 @@ class SyncSampler(SamplerInput):
             )
             self._env_runner = self._env_runner_obj.run()
         else:
+            self.sample_collector = sample_collector_class(
+                worker.policy_map,
+                clip_rewards,
+                callbacks,
+                multiple_episodes_in_batch,
+                rollout_fragment_length,
+                count_steps_by=count_steps_by,
+            )
             # Create the rollout generator to use for calls to `get_data()`.
             self._env_runner = _env_runner(
                 worker,

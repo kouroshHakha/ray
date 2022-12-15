@@ -10,6 +10,7 @@ from ray.rllib.env.external_env import ExternalEnvWrapper
 from ray.rllib.env.wrappers.atari_wrappers import MonitorEnv, get_wrapper_by_cls
 from ray.rllib.evaluation.collectors.simple_list_collector import _PolicyCollectorGroup
 from ray.rllib.evaluation.episode_v2 import EpisodeV2
+from ray.rllib.evaluation.episode_v3 import EpisodeV3
 from ray.rllib.evaluation.metrics import RolloutMetrics
 from ray.rllib.models.preprocessors import Preprocessor
 from ray.rllib.policy.policy import Policy
@@ -34,6 +35,7 @@ from ray.rllib.utils.typing import (
     TensorStructType,
 )
 from ray.util.debug import log_once
+from ray.rllib.evaluation.collectors.rlm_trajectory_collector import MultiAgentRLModuleTrajectoryCollector
 
 if TYPE_CHECKING:
     from gym.envs.classic_control.rendering import SimpleImageViewer
@@ -246,6 +248,7 @@ class EnvRunnerV2:
         self._rollout_fragment_length = rollout_fragment_length
         self._count_steps_by = count_steps_by
         self._render = render
+        self._enable_rl_module_api = self._worker.config._enable_rl_module_api
 
         # May be populated for image rendering.
         self._simple_image_viewer: Optional[
@@ -253,8 +256,8 @@ class EnvRunnerV2:
         ] = self._get_simple_image_viewer()
 
         # Keeps track of active episodes.
-        self._active_episodes: Dict[EnvID, EpisodeV2] = {}
-        self._batch_builders: Dict[EnvID, _PolicyCollectorGroup] = _NewDefaultDict(
+        self._active_episodes: Dict[EnvID, Union[EpisodeV2, EpisodeV3]] = {}
+        self._batch_builders: Dict[EnvID, Union[_PolicyCollectorGroup, MultiAgentRLModuleTrajectoryCollector]] = _NewDefaultDict(
             self._new_batch_builder
         )
 
@@ -307,12 +310,14 @@ class EnvRunnerV2:
             episode=episode,
         )
 
-    def _new_batch_builder(self, _) -> _PolicyCollectorGroup:
+    def _new_batch_builder(self, _) -> Union[_PolicyCollectorGroup, MultiAgentRLModuleTrajectoryCollector]:
         """Create a new batch builder.
 
         We create a _PolicyCollectorGroup based on the full policy_map
         as the batch builder.
         """
+        if self._enable_rl_module_api:
+            return MultiAgentRLModuleTrajectoryCollector(self._worker.marl_module)
         return _PolicyCollectorGroup(self._worker.policy_map)
 
     def run(self) -> Iterator[SampleBatchType]:
@@ -828,13 +833,24 @@ class EnvRunnerV2:
 
         # Create a new episode under the same `env_id` and call the
         # `on_episode_created` callbacks.
-        new_episode = EpisodeV2(
-            env_id,
-            self._worker.policy_map,
-            self._worker.policy_mapping_fn,
-            worker=self._worker,
-            callbacks=self._callbacks,
-        )
+        if self._enable_rl_module_api:
+            new_episode = EpisodeV3(
+                env_id,
+                self._worker.marl_module,
+                self._worker.policy_map,
+                self._worker.policy_mapping_fn,
+                worker=self._worker,
+                callbacks=self._callbacks,
+            )
+        else:
+            new_episode = EpisodeV2(
+                env_id,
+                self._worker.policy_map,
+                self._worker.policy_mapping_fn,
+                worker=self._worker,
+                callbacks=self._callbacks,
+            )
+            
 
         # Call `on_episode_created()` callback.
         self._callbacks.on_episode_created(
