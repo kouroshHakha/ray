@@ -30,6 +30,7 @@ from ray.rllib.connectors.util import (
     create_connectors_for_policy,
     maybe_get_filters_for_syncing,
 )
+from ray.rllib.core.rl_module.marl_module import MultiAgentRLModule
 from ray.rllib.env.base_env import BaseEnv, convert_to_base_env
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.env.external_multi_agent_env import ExternalMultiAgentEnv
@@ -681,6 +682,15 @@ class RolloutWorker(ParallelIteratorWorker, FaultAwareApply):
             default_policy_class=self.default_policy_class,
         )
 
+        # TODO (Kourosh): Remove the policy_map related logic,
+        # e.g. get_multi_agent_setup
+        module_specs = None
+        if self.config._enable_rl_module_api:
+            module_specs = self.config.get_multi_agent_spec(
+                env=self.env, spaces=self.spaces
+            )
+            module_specs = {k: v.to_dict() for k, v in module_specs.items()}
+
         self.policy_map: Optional[PolicyMap] = None
         # TODO(jungong) : clean up after non-connector env_runner is fully deprecated.
         self.preprocessors: Dict[PolicyID, Preprocessor] = None
@@ -727,6 +737,19 @@ class RolloutWorker(ParallelIteratorWorker, FaultAwareApply):
 
         self._build_policy_map(policy_dict=self.policy_dict)
 
+        # TODO (Kourosh): Remove the policy_map related logic,
+        # e.g. _build_policy_map
+        self.marl_module = None
+
+        if self.config._enable_rl_module_api:
+            if issubclass(self.config.rl_module_class, MultiAgentRLModule):
+                module_class = self.config.rl_module_class
+            else:
+                module_class = MultiAgentRLModule
+            self.marl_module = module_class.from_multi_agent_config(
+                {"modules": module_specs}
+            )
+
         # Update Policy's view requirements from Model, only if Policy directly
         # inherited from base `Policy` class. At this point here, the Policy
         # must have it's Model (if any) defined and ready to output an initial
@@ -735,8 +758,12 @@ class RolloutWorker(ParallelIteratorWorker, FaultAwareApply):
             if not pol._model_init_state_automatically_added:
                 pol._update_model_view_requirements_from_init_state()
 
-        self.multiagent: bool = set(self.policy_map.keys()) != {DEFAULT_POLICY_ID}
-        if self.multiagent and self.env is not None:
+        if self.config._enable_rl_module_api:
+            multiagent: bool = set(self.marl_module.keys()) != {DEFAULT_POLICY_ID}
+        else:
+            multiagent: bool = set(self.policy_map.keys()) != {DEFAULT_POLICY_ID}
+
+        if multiagent and self.env is not None:
             if not isinstance(
                 self.env,
                 (BaseEnv, ExternalMultiAgentEnv, MultiAgentEnv, ray.actor.ActorHandle),

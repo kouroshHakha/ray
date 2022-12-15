@@ -1,6 +1,9 @@
 import copy
+from dataclasses import dataclass
+from dataclasses_json import dataclass_json
+import gym
 import pprint
-from typing import Iterator, Mapping, Any, Union, Dict
+from typing import Iterator, Mapping, Any, Union, Dict, Type
 
 from ray.util.annotations import PublicAPI
 from ray.rllib.utils.annotations import override
@@ -13,6 +16,15 @@ from ray.rllib.core.rl_module import RLModule
 from ray.rllib.utils.policy import validate_policy_id
 
 ModuleID = str
+
+
+@dataclass_json
+@dataclass
+class RLModuleSpec:
+    module_class: Type[RLModule] = None
+    observation_space: gym.Space = None
+    action_space: gym.Space = None
+    model_config: Dict[str, Any] = None
 
 
 def _get_module_configs(config: Dict[str, Any]):

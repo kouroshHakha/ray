@@ -5,9 +5,11 @@ import logging
 import math
 from typing import (
     Any,
+    cast,
     Callable,
     Container,
     Dict,
+    List,
     Optional,
     Tuple,
     Type,
@@ -16,8 +18,9 @@ from typing import (
 )
 
 import ray
-from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
+from ray.rllib.evaluation.rollout_worker import RolloutWorker
+from ray.rllib.core.rl_module.marl_module import RLModuleSpec
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.evaluation.collectors.sample_collector import SampleCollector
@@ -139,6 +142,106 @@ def _resolve_class_path(module) -> Type:
         module_path, class_name = module.rsplit(".", 1)
         module = importlib.import_module(module_path)
         return getattr(module, class_name)
+
+
+# TODO (Kourosh): Move this to rllib.utils
+def _infer_spaces_dict_from_env(
+    env: EnvType,
+    *,
+    policies: List[PolicyID],
+    mapping_fn: Callable,
+    spaces: Optional[Dict[PolicyID, Tuple[Space, Space]]] = None,
+):
+    env_obs_space = None
+    env_act_space = None
+
+    # Env is a ray.remote: Get spaces via its (automatically added)
+    # `_get_spaces()` method.
+    if isinstance(env, ray.actor.ActorHandle):
+        env_obs_space, env_act_space = ray.get(env._get_spaces.remote())
+    # Normal env (gym.Env or MultiAgentEnv): These should have the
+    # `observation_space` and `action_space` properties.
+    elif env is not None:
+        if hasattr(env, "observation_space") and isinstance(
+            env.observation_space, gym.Space
+        ):
+            env_obs_space = env.observation_space
+
+        if hasattr(env, "action_space") and isinstance(env.action_space, gym.Space):
+            env_act_space = env.action_space
+    # Last resort: Try getting the env's spaces from the spaces
+    # dict's special __env__ key.
+    if spaces is not None:
+        env_obs_space, env_act_space = spaces.get("__env__", [None, None])
+
+    obs_space_dict, act_space_dict = {}, {}
+    for pid in policies:
+        # observation_space.
+        if spaces is not None and pid in spaces:
+            obs_space_dict[pid] = spaces[pid][0]
+        elif env_obs_space is not None:
+            obs_space = None
+            if (
+                isinstance(env, MultiAgentEnv)
+                and hasattr(env, "_spaces_in_preferred_format")
+                and env._spaces_in_preferred_format
+            ):
+                if mapping_fn:
+                    for aid in env.get_agent_ids():
+                        # Match: Assign spaces for this agentID to the PolicyID.
+                        if mapping_fn(aid, None, None) == pid:
+                            # Make sure, different agents that map to the same
+                            # policy don't have different spaces.
+                            if (
+                                obs_space is not None
+                                and env_obs_space[aid] != obs_space
+                            ):
+                                raise ValueError(
+                                    "Two agents in your environment map to the "
+                                    "same policyID (as per your `policy_mapping"
+                                    "_fn`), however, these agents also have "
+                                    "different observation spaces!"
+                                )
+                            obs_space = env_obs_space[aid]
+            # Otherwise, just use env's obs space as-is.
+            else:
+                obs_space = env_obs_space
+
+            obs_space_dict[pid] = obs_space
+
+        # action_space.
+        if spaces is not None and pid in spaces:
+            act_space_dict[pid] = spaces[pid][1]
+        elif env_act_space is not None:
+            act_space = None
+            if (
+                isinstance(env, MultiAgentEnv)
+                and hasattr(env, "_spaces_in_preferred_format")
+                and env._spaces_in_preferred_format
+            ):
+                if mapping_fn:
+                    for aid in env.get_agent_ids():
+                        # Match: Assign spaces for this agentID to the PolicyID.
+                        if mapping_fn(aid, None, None) == pid:
+                            # Make sure, different agents that map to the same
+                            # policy don't have different spaces.
+                            if (
+                                act_space is not None
+                                and env_act_space[aid] != act_space
+                            ):
+                                raise ValueError(
+                                    "Two agents in your environment map to the "
+                                    "same policyID (as per your `policy_mapping"
+                                    "_fn`), however, these agents also have "
+                                    "different action spaces!"
+                                )
+                            act_space = env_act_space[aid]
+            # Otherwise, just use env's action space as-is.
+            else:
+                act_space = env_act_space
+            act_space_dict[pid] = act_space
+
+    return obs_space_dict, act_space_dict
 
 
 class AlgorithmConfig:
@@ -2196,6 +2299,75 @@ class AlgorithmConfig:
             )
 
         return eval_config_obj
+
+    def get_multi_agent_spec(
+        self,
+        *,
+        modules: Optional[Dict[PolicyID, Dict[str, Any]]] = None,
+        env: Optional[EnvType] = None,
+        spaces: Optional[Dict[PolicyID, Tuple[Space, Space]]] = None,
+    ) -> Tuple[MultiAgentPolicyConfigDict, Callable[[PolicyID, SampleBatchType], bool]]:
+        # TODO (Kourosh): Implement this.
+
+        # TODO (Kourosh): For now we will use self.policies instead of modules.
+        modules = copy.deepcopy(modules or self.policies)
+
+        if isinstance(modules, (set, list, tuple)):
+            modules = {mid: RLModuleSpec() for mid in modules}
+
+        modules = cast(Dict[PolicyID, RLModuleSpec], modules)
+
+        # for backward compatibility: convert PolicySpec to RLModuleSpec
+        for mid, module_spec in modules.items():
+            if isinstance(module_spec, PolicySpec):
+                modules[mid] = RLModuleSpec(
+                    observation_space=module_spec.observation_space,
+                    action_space=module_spec.action_space,
+                )
+
+        # try infering spaces from env
+        obs_space_dict, act_space_dict = _infer_spaces_dict_from_env(
+            env,
+            policies=modules.keys(),
+            mapping_fn=self.policy_mapping_fn,
+            spaces=spaces,
+        )
+
+        for mid, module_spec in modules.items():
+
+            if module_spec.module_class is None:
+                module_spec.module_class = self.rl_module_class
+
+            if module_spec.observation_space is None:
+                if mid in obs_space_dict:
+                    module_spec.observation_space = obs_space_dict[mid]
+                elif self.observation_space:
+                    module_spec.observation_space = self.observation_space
+                else:
+                    raise ValueError(
+                        "`observation_space` not provided in RLModuleSpec for "
+                        f"{mid} and env does not have an observation space OR "
+                        "no spaces received from other workers' env(s) OR no "
+                        "`observation_space` specified in config!"
+                    )
+
+            if module_spec.action_space is None:
+                if mid in act_space_dict:
+                    module_spec.action_space = act_space_dict[mid]
+                elif self.action_space:
+                    module_spec.action_space = self.action_space
+                else:
+                    raise ValueError(
+                        "`action_space` not provided in RLModuleSpec for "
+                        f"{mid} and env does not have an action space OR "
+                        "no spaces received from other workers' env(s) OR no "
+                        "`action_space` specified in config!"
+                    )
+
+            if module_spec.model_config is None:
+                module_spec.model_config = self.model
+
+        return modules
 
     def get_multi_agent_setup(
         self,

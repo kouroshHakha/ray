@@ -12,6 +12,7 @@ import ray
 from ray.rllib.algorithms.a2c import A2CConfig
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.pg import PGConfig
+from ray.rllib.core.testing.torch.random_module import RandomTorchRLModule
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.evaluation.metrics import collect_metrics
@@ -98,6 +99,27 @@ class TestRolloutWorker(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         ray.shutdown()
+
+    def test_basic_with_rlm(self):
+        """The basic test with RLModule API."""
+        # TODO (Kourosh): Remove the test_basic when the API is stable.
+        config = (
+            AlgorithmConfig()
+            .rollouts(num_rollout_workers=0)
+            .rl_module(
+                rl_module_class=RandomTorchRLModule,
+                _enable_rl_module_api=True,  # TODO (Kourosh): Remove this.
+            )
+        )
+
+        ev = RolloutWorker(
+            env_creator=lambda _: gym.make("CartPole-v1"),
+            default_policy_class=MockPolicy,
+            config=config,
+        )
+
+        ma_batch = ev.sample()
+        batch = convert_ma_batch_to_sample_batch(ma_batch)
 
     def test_basic(self):
         ev = RolloutWorker(
