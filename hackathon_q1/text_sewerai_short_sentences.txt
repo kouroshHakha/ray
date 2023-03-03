@@ -1,0 +1,135 @@
+2, Hey, Alex.
+
+2, Hey, Anthony.
+
+3, How are you?
+
+1, Good.
+
+3, What about you?
+
+3, Doing all right.
+
+3, Good to hear.
+
+3, Good to hear.
+
+3, How's San Francisco?
+
+1, Okay.
+
+2, Hey, Noah.
+
+2, Hey, Noah.
+
+2, Pretty well.
+
+3, How are you?
+
+2, Oh, cool.
+
+2, All right.
+
+2, Hey, Brent.
+
+2, Hey, there.
+
+2, Okay, cool.
+
+3, Well, not cool.
+
+2, I see.
+
+2, Got it.
+
+1, Yeah.
+
+2, That's incredible.
+
+2, Oh, right.
+
+1, Yeah.
+
+1, Yeah.
+
+2, Got it.
+
+3, There we go.
+
+2, Got it.
+
+1, Okay.
+
+1, Gotcha.
+
+1, Yep.
+
+2, All right.
+
+1, Okay.
+
+1, Right.
+
+3, There you go.
+
+1, Right.
+
+1, Right.
+
+1, Yeah.
+
+3, Okay, got it.
+
+1, No.
+
+3, Yeah, it does.
+
+1, Okay.
+
+2, Got it.
+
+2, Okay, cool.
+
+2, Got it.
+
+1, Cool.
+
+1, Okay.
+
+1, Cool.
+
+1, Cool.
+
+1, Sure.
+
+2, That works.
+
+2, It varies.
+
+1, Okay.
+
+2, All right.
+
+1, Yes.
+
+3, I'll do it.
+
+3, Thanks a lot.
+
+1, Awesome.
+
+1, Yeah.
+
+2, All right.
+
+1, Great.
+
+2, All right.
+
+2, Thank you.
+
+1, Right.
+
+1, Yes.
+
+1, Bye.

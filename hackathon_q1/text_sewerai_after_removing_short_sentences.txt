@@ -1,0 +1,371 @@
+Has it been raining the last couple of days?
+
+Yesterday, I managed to avoid most of it, but it's like just finished raining when I left the office, basically.
+
+I'm going to be out there next week, next few weeks.
+
+And then it's calm here in Sacramento.
+
+So like having to commute is the, I'm not, I hope it doesn't, it doesn't rain pretty much in the, during those times.
+
+Hi, how's it going?
+
+So we are actually waiting for ammo.
+
+So, yeah, there we go.
+
+Hey, I'm like, hey, yes.
+
+So, yeah, basically just, just like we update from like the engineering side.
+
+So I'll be handing off like the DRI for sewer AI to Amok.
+
+Amok has a lot of experience with inference and batch processing.
+
+That being said, I still prepared that demo, which I would like to showcase.
+
+So let me share my screen.
+
+And just quickly, while you set that up, Anthony, Noah, should we expect June to join as well or would just be, you know, he's, he's upset today.
+
+Okay, so we took the liberty of setting up a workspace in your account using the support access feature, and that way you can play around with the code.
+
+You can run it yourself.
+
+So what we wanted to do is just like create like a simple script that would be representative of your workload of what we talked about during our last meeting.
+
+How did you remember all the parameters I had?
+
+We had a recording.
+
+Yeah, but I feel like this is going to be like pretty representative.
+
+So I use that example video you have sent as the data.
+
+So I have created a bucket with a thousand of those videos for this demo, running 16 of those.
+
+So one thing to highlight here is that we are using the new Ray data set streaming executor, which will be available in Ray 2.3, I am running a nightly version of Ray here which has access to that and the streaming executor allows us to very efficiently do this workload without having to load all the data into memory at the same time, which allows us to avoid issues with running out of memory or spilling to disk.
+
+So what we do here is we create a data set pipeline by defining a load clip method.
+
+So what's going to happen is that we read the binary files.
+
+So those are our videos from S3.
+
+We then define the load clip.
+
+So this is very similar to what you had.
+
+We are using Decode.
+
+We are reading the bytes directly into the video reader and then just partition it into batches of images and we yield those images in the form of NumPy arrays.
+
+And this is what we map the data set to.
+
+So we have the decoded data set, which is the binary data set, map batches, we pass the function and that's it for this.
+
+And I use that D E T R model so we can create an actor to do inference.
+
+So this is very similar.
+
+So before we specify the function here, we create an actor.
+
+The difference is that the actor is initialized once.
+
+So you do not have to initialize the model over and over again.
+
+And this is also like very similar to what we have showed.
+
+We just pass the tensors to the model and we return the predictions.
+
+And we also use map batches here.
+
+So I can just run it.
+
+And the cluster is composed of eight M5 forex large nodes and eight G5 GPU nodes.
+
+So a thousand, I run a benchmark, so a thousand images, sorry, a thousand videos, a thousand 50 megabytes videos takes around an hour to fully process.
+
+And as we get to the inference part, we'll be able to see the GPU utilization increase.
+
+And I was able to get around 90, 95 percent GPU utilization once the first batch is starting to be processed.
+
+Sorry, maybe I missed it.
+
+How did you retrieve?
+
+You didn't have to.
+
+I was going to ask how you retrieved the model weights, but then I realized you loaded it from a pre-trained.
+
+Yeah, from Hugging Face.
+
+So, yeah, I'm just wondering, instead of having every GPU node have to download the weights independently, would it make sense to put the weights in object memory one time?
+
+And then have you read from that?
+
+So, I mean, if they are not too big, then you can, of course, do that.
+
+If the weights are like many gigabytes, I would advise against that.
+
+In that case, better to probably just download it into like a local directory on each node and read from that.
+
+So, yeah, we can see here.
+
+So, yeah, we are done.
+
+So, basically, thanks to the streaming execution, it will read the files, then it will immediately pass the read files to be decoded, and then the decoded images are going to be passed to the model inference.
+
+And hopefully we'll be able to see.
+
+Node GPU can see that the GPU utilization is 8698 memory saturated.
+
+So, if you have like a large amount of videos, this is what you are going to see all the time, like almost maximum GPU saturation.
+
+Well, this is really impressive.
+
+And I don't know to say I've never had a software vendor.
+
+It's kind of work.
+
+Can you can you leave this workspace for me.
+
+Yeah, of course, that's why we need your account if, if, if you want to get rid of your, your temporary bucket I can use my own videos, but otherwise Yeah, yeah.
+
+So, one other thing I need to highlight here so there is unfortunately a bag such oversight in data that that's also going to be present in 2.3.
+
+So we have figured out the bag, so this is fixed on the nightly version.
+
+And this is also present in the cluster environment.
+
+The fix is present in the cluster environment I've built.
+
+So you can see that we installed the latest nightly will hear.
+
+This will be fixed completely in Ray 2.4.
+
+But for now I would recommend using nightly.
+
+Okay, that makes sense.
+
+Yeah, that's that's pretty much it.
+
+Right, I will I will start playing around with this this is very helpful for sure.
+
+Oh, I guess my question is, you know, obviously new videos come in.
+
+In all the time.
+
+What's sort of the recommended way to update this data set.
+
+Um, I think you just update the S3 bucket.
+
+Oh, I see it's it's it's based on that.
+
+So, so one way that I've seen customers do this.
+
+One way I've seen customers do this is using a Lambda function on the, on the AWS side so when a new video shows up in the S3 bucket, you trigger the Lambda function the Lambda function can actually.
+
+This all gets kicked off by a customer API requests for a platform.
+
+Okay, we don't we don't actually run inference immediately when the video comes to the system, because inference, we that we charge for inference.
+
+Some people just want to store their videos on our system and not have us to work on them.
+
+So it's actually a separate kickoff.
+
+I can, I can just, I can just tie it to the customer endpoint to have a kickoff.
+
+And then with any scale SDK you can you can trigger any scale job.
+
+Like, or or you could have a job, you know if you're just like, if you know any files in this bucket that showed up over the last 24 hours like if you if you have it like set up on a schedule.
+
+You can do it that way as well like just a simple cron job that should be in your any scale console you should see a schedules option.
+
+So you could also.
+
+But that's another common way for batch inference is just every 24 hours every once a week, however often you want to want to do it.
+
+That's just another way to have that capability.
+
+This is again, very, very neat.
+
+I have some, a few great questions that if you guys are okay with.
+
+So you can just play around with it.
+
+So, if I, I have a simple task like this, and this, this guy's job is just to either load a file into object memory from the local cache.
+
+If it doesn't exist there I gets it from s3.
+
+And if it's not in the local cache, it gets the object, and then calls to save the local cache task to save it to the local cache it doesn't have to read from s3 again.
+
+Now, I don't wait on save the local cache.
+
+I don't really get it because I want this object to return immediately without waiting on this.
+
+The issue here, though, is because I need to send this object both to the color of dysfunction.
+
+And to save the local cache, I can't.
+
+What am I saying is I end up with a reference that points to a reference, and this happens frequently with this sort of thing.
+
+And so, maybe this wasn't the right example.
+
+No, I don't have one here.
+
+Basically anytime I need to both return an object and and pass off.
+
+So, oh, now I'm sorry, sorry for being confused I remember what I wanted to ask that my problem here is that when I read this object This is now just in memory.
+
+And then I pass it here.
+
+I, it is going to build a reference to object memory.
+
+Here, but then when I return it.
+
+It's, I feel like it's going to build a second reference to the same thing to return to the color.
+
+And so I wasn't sure how to navigate that situation.
+
+I mean, is it.
+
+I mean these objects could potentially be you know, 100 megabytes, it's not a crisis if there are two references.
+
+Yeah, so I think like here.
+
+I'm basically all you need to do is just like in line 640, like right before 649.
+
+You can do like, like, you can do like the rate output, which will like put the object into the object store once and then now you can pass that reference, wherever you need to.
+
+And then the issue with that is now I'm instead of returning the object I'm trying to reference to the object so now it's a reference to a reference.
+
+And so, sometimes I've just been doing really hacky code.
+
+So like when I forget how many layers deep the references.
+
+I'll just keep looping until I can't get it anymore, which I.
+
+So I don't know if, if there, it would be cool if there was like a resolve reference until you get to an object method or something.
+
+I don't know, this may just all because I'm very new to Ray, and I'm using it wrong, but I keep running into this sort of issue.
+
+So one thing you can do is like you can check if an object is already on instance of Ray object reference, and in that case you may not just put it into the object store again.
+
+That's one suggestion I can give.
+
+Yeah, I mean I do that globally it's just, just in that one function and sort of just said that duplicate.
+
+During, I don't think it's that big a deal I was just curious in terms of better way to handle it.
+
+Yeah, so I think like ratio automatically resolve the reference that's being passed into any task.
+
+In this case, I guess it's being returned right and you're like yeah.
+
+Yeah, I don't think, yeah, there's like no, I don't think there's any utility to like, like, yeah, like do this nested unwrapping thing so I think yeah, like, either what you have or what Anthony said it would just work fine.
+
+So, just to reiterate what what Anthony suggestion was mostly from my own education.
+
+When right before you did do the rate put.
+
+I see if it's already a reference that idea.
+
+And then if it's not, then put it.
+
+And if it is, then skip the put as one option.
+
+Does that make sense.
+
+The other question I had is, how do I get ready to stop complaining about the launching thousands of tasks.
+
+Like, it's not a problem it just gives me error messages.
+
+Can you give an example of their message.
+
+See if I can find one.
+
+I guess it's a warning by warning 1024 Python workers haven't started on node, whatever.
+
+I mean it's intended behavior and some like cases is, I'm just wondering if this way to save it.
+
+Yeah, I think, um, just the standard however you would disable like standard Python warnings like you could just do that.
+
+Yeah, I don't think yeah there's nothing really like.
+
+Yeah, I don't think it's like specific configuration within rate to disable that but I guess I just wasn't sure what process was growing the error it was like the master race scheduler or.
+
+I think this should be coming from like the driver process so yeah so using just like the regular like Python warning filters should work I think.
+
+All right, well, I, I can super appreciate this inference code, you created, and I'm going to try it out immediately.
+
+And thanks for answering my questions.
+
+Cool, and I'll hand it over to Brent or Anthony if you have any other questions but I'm curious, from, from my perspective, Noah.
+
+Just curious what, what other items or what else you have left to kind of test out just or for us to formulate like some milestones on our side as well.
+
+So I'm going to see if I can get, you know, the, our actual production inference process running.
+
+And if possible, just let it go for a couple days.
+
+And, and monitor it pretty much to production, and, and make sure everything goes smoothly.
+
+And during those two days like what what is it that you're essentially looking to say like hey this one smoothly versus like when it goes smoothly.
+
+Well, certainly, you know, jobs, completely.
+
+But also, you know, I'll tag.
+
+All the easy to machines, get the, the cost.
+
+You know, divide divided on videos and compare it to the calculations from before.
+
+Yeah, just out of curiosity, what were you running the database batch, because, because I think you said that it was only running on one instance at a time, correct, like like yeah one, one, one, one p three.
+
+Okay, three two x large, which is a V 100 GPU, which is in, which would be overkill for this inference job, except it's a long story but basically the old, the old version of deformable teeth are not the hugging face one, the original one had a custom compiled operator that only worked on certain GPUs.
+
+Anyway, now I think we can use a cheaper one but yeah.
+
+Then, with that, I know we had initially talked about having a sink tomorrow but would it might make more sense.
+
+If we set up time for Wednesday, would that work for you know what we could have that as a sink.
+
+And of course we're available on Slack and, you know, any ad hoc meetings we need.
+
+Oh, how's 130 Pacific work for you.
+
+Yeah, after it is a great task.
+
+Okay, so I'll go ahead and send that over.
+
+And yeah, feel free to reach out to us.
+
+There's any other questions but aside from that, Brent Anthony, a mug, anything else.
+
+Just one quick question though like how frequently would these inference jobs be run and like on what data size.
+
+But typically, a few hundred a day.
+
+But there are there are there are times when someone will will dump thousands at once.
+
+So it's really spiky.
+
+Sorry, a few hundred videos a day for your jobs today.
+
+A few hundred videos.
+
+Okay, okay, got it.
+
+Got a huge video is like 50 megabytes, something like that.
+
+No, they're usually bigger.
+
+The one I sent to you was a fairly low res small one, I see they're usually considering bigger.
+
+I just wanted to fit into the slack easy.
+
+Anything else we might be able to provide today, Noah.
+
+Feel free to reach out with any questions.
+
+Have a good weekend.
