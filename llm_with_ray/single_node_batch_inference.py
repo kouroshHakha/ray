@@ -99,6 +99,15 @@ def main():
         prompts = [
             conv.get_prompt() for _ in range(batch_size)
         ]
+    elif "dolly" in args.model_name:
+        prompt = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+        ### Instruction:
+        Can you tell me about your understanding of the meaning of life?
+
+        ### Response:
+        """
+        prompts = [prompt for _ in range(batch_size)]
     else:
         prompts = [
             "Human: Can you tell me about your understanding of the meaning of life?\n\nAI Assistant: " for _ in range(batch_size)
@@ -113,6 +122,7 @@ def main():
     )
 
     generation_time_s = time.time()
+    print("Generating ...")
     output_ids = model.generate(
         input_ids=prompt_tensors["input_ids"].to("cuda"),
         attention_mask=prompt_tensors["attention_mask"].to("cuda"),
