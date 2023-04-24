@@ -23,7 +23,6 @@ class StopOnEncounteringWord(StoppingCriteria):
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
         for stop in self.stops:
             input_text = self.tokenizer.decode(input_ids[0])
-            print("input_text: ", input_text, "stop: ", stop)
             if stop in input_text[-len(stop):]:
                 return True
 
@@ -220,6 +219,12 @@ class Predictor:
 
 def parse_arguments():
     import argparse
+
+
+    # Custom function to convert the string argument to the desired format
+    def newline_converter(string):
+        return string.replace('\\n', '\n')
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model_name", 
@@ -240,7 +245,10 @@ def parse_arguments():
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_gpus_per_actor", type=int, default=1)
     parser.add_argument("--max_new_tokens", type=int, default=512)
-    parser.add_argument("--stop_word", type=str)
+    # Add the stop_word argument with a custom type
+    parser.add_argument('--stop_word', type=newline_converter, default='\n\n',
+                        help='Specify the stop word as a string, e.g., "\\n\\n" for two newline characters.')
+
     args = parser.parse_args()
     return args
 
@@ -255,9 +263,7 @@ def main():
     
     df = pd.DataFrame(list_of_convs)
     ray_dataset = ray.data.from_pandas(df)
-    limit = 2
-    ray_dataset = ray_dataset.limit(limit)
-    ray_dataset = ray_dataset.repartition(limit)
+    ray_dataset = ray_dataset.repartition(128)
 
     generate_kwargs = {
         "max_new_tokens": args.max_new_tokens,
@@ -266,8 +272,7 @@ def main():
     if args.stop_word:
         # stopping criteria
         tokenizer = get_tokenizer(args.model_name)
-        # stop_words = [args.stop_word]
-        stop_words = ["\n\n"]
+        stop_words = [args.stop_word]
         stopping_critera = StoppingCriteriaList([
             StopOnEncounteringWord(stop_words, tokenizer=tokenizer)
         ])
@@ -300,7 +305,6 @@ def main():
     odf.to_json(output_path / f"output_{fname_stem}.json", orient="records", lines=True)
     print(f"Saved output to {output_path}")
 
-
     # save the statistics
     total_time = time_batch_infernence_e - time_batch_inference_s
     num_gen_tokens = odf["num_generated_tokens"].sum()
@@ -319,7 +323,6 @@ def main():
     }
 
     pprint.pprint(logs_dict)
-    breakpoint()
 
     logs_path = Path(args.data_path).parent.parent / "model_outputs" / model_name_flat / f"log_{fname_stem}.txt"
 
