@@ -246,8 +246,9 @@ def parse_arguments():
     parser.add_argument("--num_gpus_per_actor", type=int, default=1)
     parser.add_argument("--max_new_tokens", type=int, default=512)
     # Add the stop_word argument with a custom type
-    parser.add_argument('--stop_word', type=newline_converter, default='\n\n',
+    parser.add_argument("--stop_word", type=newline_converter, default='\n\n',
                         help='Specify the stop word as a string, e.g., "\\n\\n" for two newline characters.')
+    parser.add_argument("--output_suffix", type=str, default="")
 
     args = parser.parse_args()
     return args
@@ -282,15 +283,15 @@ def main():
     output = ray_dataset.map_batches(
         Predictor,
         batch_format="pandas", 
-        batch_size=1,
+        batch_size=args.batch_size,
         num_gpus=args.num_gpus_per_actor,
         fn_constructor_kwargs={
             "model_name_or_path": args.model_name,
             "generate_kwargs": generate_kwargs,
             "model_dtype": args.dtype,
         },
-        compute=ActorPoolStrategy(min_size=1, max_size=8)
-    ).fully_executed()
+        compute=ActorPoolStrategy(min_size=1)
+    ).cache()
     time_batch_infernence_e = time.time()
     
     print(f"Time to run batch inference: {time_batch_infernence_e - time_batch_inference_s} seconds.")
@@ -299,7 +300,7 @@ def main():
     # save to json
     model_name_flat = args.model_name.replace("/", "-")
     fname_stem = Path(args.data_path).stem
-    output_path = Path(args.data_path).parent.parent / "model_outputs" / model_name_flat 
+    output_path = Path(args.data_path).parent.parent / "model_outputs" / f"{model_name_flat}-{args.output_suffix}" 
     
     output_path.mkdir(parents=True, exist_ok=True)
     odf.to_json(output_path / f"output_{fname_stem}.json", orient="records", lines=True)
