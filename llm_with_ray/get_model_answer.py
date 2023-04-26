@@ -1,3 +1,12 @@
+"""
+Notes: 
+
+- For using llama, you need to download llama weights and go into the tokenizer_config.yaml file and replace "tokenizer_class" value with LlamaTokenizer so that the auto tokenizer can load the tokenizer correctly. https://github.com/huggingface/transformers/issues/22222
+
+- For using vicuna, it's important that the special_tokens_config.json file matches what is actually expected from the sft stage. read more here: https://github.com/lm-sys/FastChat/blob/main/docs/vicuna_weights_version.md but you have to modify the file manually after applying the delta weights. 
+
+"""
+
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import time
@@ -52,8 +61,8 @@ class VicunaPrompter(Prompter):
 
     def __call__(self, records: pd.DataFrame) -> str:
         
-        for row in records.iterrows():
-            conversation = row["conversation"]
+        for _, row in records.iterrows():
+            conversation = row["conversations"]
             conv = self.default_conv.copy()
             for turn in conversation:
                 if turn["role"] == "user":
@@ -61,27 +70,31 @@ class VicunaPrompter(Prompter):
                 elif turn["role"] == "assistant":
                     conv.append_message("ASSISTANT", turn["text"])
             conv.append_message("ASSISTANT", None)
+            # override the prompt field
             row["prompt"] = conv.get_prompt()
         
         return records
 
 def get_tokenizer(model_name_or_path: str):
-    if "llama" in model_name_or_path or "vicuna" in model_name_or_path:
-        from transformers import LlamaTokenizer
-        tokenizer = LlamaTokenizer.from_pretrained(
-            model_name_or_path,
-            truncation_side="left",
-            padding_side="left"
-        )
-        tokenizer.add_special_tokens({'pad_token': '<|PAD|>'})
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            use_fast=True,
-            truncation_side="left",
-            padding_side="left"
-        )
-        tokenizer.pad_token = tokenizer.eos_token
+    # if "llama" in model_name_or_path:# or "vicuna" in model_name_or_path:
+    #     from transformers import LlamaTokenizer
+    #     tokenizer = LlamaTokenizer.from_pretrained(
+    #         model_name_or_path,
+    #         truncation_side="left",
+    #         padding_side="left"
+    #     )
+    #     tokenizer.add_special_tokens({'pad_token': '<|PAD|>'})
+    # else:
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name_or_path,
+        use_fast=False,
+        truncation_side="left",
+        padding_side="left"
+    )
+    # add a token for padding 
+    # (the value is not important since we won't be predicting it)
+    tokenizer.add_special_tokens({'pad_token': '<|PAD|>'})
+    # tokenizer.pad_token = tokenizer.eos_token
     
     return tokenizer
 
@@ -191,7 +204,7 @@ class Predictor:
         output_ids = self.model.generate(
             input_ids=prompt_tensors["input_ids"].to("cuda"),
             attention_mask=prompt_tensors["attention_mask"].to("cuda"),
-            # eos_token_id=self.tokenizer.eos_token_id,
+            eos_token_id=self.tokenizer.eos_token_id,
             # pad_token_id=self.tokenizer.pad_token_id,
             **self.generate_kwargs
         )
@@ -244,11 +257,13 @@ def parse_arguments():
     parser.add_argument("--dtype", type=str, default="fp16", choices=["fp16", "fp32", "bf16", "int8"])
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_gpus_per_actor", type=int, default=1)
+    parser.add_argument("--num_gpus", type=int, default=None)
     parser.add_argument("--max_new_tokens", type=int, default=512)
     # Add the stop_word argument with a custom type
-    parser.add_argument("--stop_word", type=newline_converter, default='\n\n',
+    parser.add_argument("--stop_word", type=newline_converter, default="",
                         help='Specify the stop word as a string, e.g., "\\n\\n" for two newline characters.')
     parser.add_argument("--output_suffix", type=str, default="")
+    parser.add_argument("--n_partitions", type=int, default=256)
 
     args = parser.parse_args()
     return args
@@ -261,10 +276,13 @@ def main():
     with open(args.data_path, "r") as f:
         list_of_convs = json.load(f)
     
-    
     df = pd.DataFrame(list_of_convs)
     ray_dataset = ray.data.from_pandas(df)
-    ray_dataset = ray_dataset.repartition(128)
+    ray_dataset = ray_dataset.repartition(args.n_partitions)
+
+    # grab all gpus in the cluster if not specified
+    num_gpus = args.num_gpus or int(ray.cluster_resources()["GPU"])
+    print("num_gpus: ", num_gpus)
 
     generate_kwargs = {
         "max_new_tokens": args.max_new_tokens,
@@ -290,7 +308,7 @@ def main():
             "generate_kwargs": generate_kwargs,
             "model_dtype": args.dtype,
         },
-        compute=ActorPoolStrategy(min_size=1)
+        compute=ActorPoolStrategy(size=num_gpus // args.num_gpus_per_actor)
     ).cache()
     time_batch_infernence_e = time.time()
     
@@ -298,9 +316,17 @@ def main():
     odf = output.to_pandas()
 
     # save to json
-    model_name_flat = args.model_name.replace("/", "-")
+    if Path(args.model_name).exists():
+        model_name_flat = Path(args.model_name).stem.replace("/", "-")
+    else:
+        model_name_flat = args.model_name.replace("/", "-")
     fname_stem = Path(args.data_path).stem
-    output_path = Path(args.data_path).parent.parent / "model_outputs" / f"{model_name_flat}-{args.output_suffix}" 
+
+    base_output_path = Path(args.data_path).parent.parent / "model_outputs"
+    if args.output_suffix:
+        output_path = base_output_path / f"{model_name_flat}-{args.output_suffix}"
+    else:
+        output_path = base_output_path / f"{model_name_flat}"
     
     output_path.mkdir(parents=True, exist_ok=True)
     odf.to_json(output_path / f"output_{fname_stem}.json", orient="records", lines=True)
@@ -325,7 +351,7 @@ def main():
 
     pprint.pprint(logs_dict)
 
-    logs_path = Path(args.data_path).parent.parent / "model_outputs" / model_name_flat / f"log_{fname_stem}.txt"
+    logs_path = output_path / f"log_{fname_stem}.txt"
 
     with open(logs_path, "w") as f:
         for k, v in logs_dict.items():
