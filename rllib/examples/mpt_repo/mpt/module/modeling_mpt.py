@@ -18,17 +18,31 @@ from .adapt_tokenizer import AutoTokenizerForMOD, adapt_tokenizer_for_denoising
 from .hf_prefixlm_converter import add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm
 from .meta_init_context import init_empty_weights
 from .param_init_fns import MODEL_INIT_REGISTRY, generic_param_init_fn_
+from fairscale.nn.checkpoint import checkpoint_wrapper
+
+
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
+    supports_gradient_checkpointing = True
+    _no_split_modules = ["MPTBlock"]
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if value and isinstance(module, MPTBlock):
+            module = checkpoint_wrapper(module)
+
 
 class MPTModel(MPTPreTrainedModel):
 
     def __init__(self, config: MPTConfig):
         config._validate_config()
         super().__init__(config)
+
+        # # checkpointing
+        # self.gradient_checkpointing = False
+
         self.attn_impl = config.attn_config['attn_impl']
         self.prefix_lm = config.attn_config['prefix_lm']
         self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
@@ -245,6 +259,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             labels = torch.roll(labels, shifts=-1)
             labels[:, -1] = -100
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), labels.to(logits.device).view(-1))
+
         return CausalLMOutputWithPast(loss=loss, logits=logits, past_key_values=outputs.past_key_values, hidden_states=outputs.hidden_states)
 
     def param_init_fn(self, module):

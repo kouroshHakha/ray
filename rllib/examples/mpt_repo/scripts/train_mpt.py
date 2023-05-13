@@ -25,6 +25,9 @@ from ray.train.huggingface.accelerate import AccelerateTrainer
 from ray.air.integrations.wandb import WandbLoggerCallback
 from transformers.models.gptj import GPTJForCausalLM
 
+from mpt.module.configuration_mpt import MPTConfig
+from mpt.module.modeling_mpt import MPTForCausalLM, MPTModel, MPTBlock
+
 EVAL_BATCH_SIZE = 32
 # MODEL = "EleutherAI/gpt-j-6b"
 MODEL = "mosaicml/mpt-7b"
@@ -88,7 +91,8 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
         batch_size (`int`, *optional*):
             The batch size for the train and validation DataLoaders.
     """
-    tokenizer = AutoTokenizer.from_pretrained(MODEL)
+    # tokenizer = AutoTokenizer.from_pretrained(MODEL)
+    tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     tokenizer.pad_token = tokenizer.eos_token
     
     with accelerator.main_process_first():
@@ -140,15 +144,21 @@ def training_function(kwargs: dict):
 
     set_seed(seed)
     train_dataloader, valid_dataloader = get_dataloaders(accelerator, batch_size)
+    print("Datasets created.")
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
 
-    config = AutoConfig.from_pretrained(MODEL, trust_remote_code=True)
-    # if MODEL.startswith("mosaicml"):
-    #     config.attn_config['attn_impl'] = 'triton'
+    print("Loading model")
+    # config = AutoConfig.from_pretrained(MODEL, trust_remote_code=True)
+    config = MPTConfig()
+    config.attn_config['attn_impl'] = 'torch'
 
     # if BLOCK_SIZE > config.max_seq_len:
     #     config.update({"max_seq_len": BLOCK_SIZE})
-    model = AutoModelForCausalLM.from_config(config, trust_remote_code=True)
+    # model = AutoModelForCausalLM.from_config(config, trust_remote_code=True)
+    model = MPTForCausalLM(config)
+    print("Done loading model")
+    
+
     
     print("Model initialized with pretrained weights. Training starting...")
 
@@ -197,7 +207,7 @@ def training_function(kwargs: dict):
     )
 
     # Now we train the model
-    with accelerator.is_main_process():
+    if accelerator.is_main_process:
         print("Starting training")
         print("number of batches", len(train_dataloader))
     avg_fwd_time, avg_bwd_time, avg_opt_step_time = 0, 0, 0
