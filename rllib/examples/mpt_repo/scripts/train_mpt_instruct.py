@@ -23,15 +23,16 @@ from accelerate.utils import DummyOptim, DummyScheduler
 
 from ray.train.huggingface.accelerate import AccelerateTrainer 
 from ray.air.integrations.wandb import WandbLoggerCallback
-from transformers.models.gptj import GPTJForCausalLM
 
-from mpt.module.configuration_mpt import MPTConfig
-from mpt.module.modeling_mpt import MPTForCausalLM, MPTModel, MPTBlock
+from ray.rllib.examples.mpt_repo.mpt.module.configuration_mpt import MPTConfig
+from ray.rllib.examples.mpt_repo.mpt.module.modeling_mpt import MPTForCausalLM, MPTModel, MPTBlock
+import numpy as np
 
 EVAL_BATCH_SIZE = 32
 # MODEL = "EleutherAI/gpt-j-6b"
 MODEL = "mosaicml/mpt-7b"
-BLOCK_SIZE = 512
+DATASET = "mosaicml/dolly_hhrlhf"
+BLOCK_SIZE = 2048
 OVERLAP_LENGTH = 128
 
 
@@ -46,39 +47,69 @@ class DictDataset(Dataset):
     def __len__(self):
         return len(next(iter(self.data_dict.values())))
     
+# def get_ds(split, tokenizer):
+    # ds = load_dataset("tiny_shakespeare")[split]
+    # text = ds["text"][0]
+    # input_tokens = tokenizer.encode(text, return_tensors="np")[0]
+
+
+    # # Split input tokens into chunks
+    # num_tokens = len(input_tokens)
+    # start_idx = 0
+    # end_idx = BLOCK_SIZE
+    # token_chunks = []
+    # while start_idx < num_tokens:
+    #     token_chunk = input_tokens[start_idx:end_idx]
+    #     token_chunks.append(token_chunk)
+    #     start_idx += BLOCK_SIZE - OVERLAP_LENGTH
+    #     end_idx += BLOCK_SIZE - OVERLAP_LENGTH
+
+    # # Join token chunks back into strings
+    # text_chunks = []
+    # for chunk in token_chunks:
+    #     text_chunks.append(tokenizer.decode(chunk))
+
+    # # artificially increase the size of the dataset by repeating it
+    # # text_chunks = text_chunks * 20
+
+    # tokenizer_kwargs = {
+    #     "padding": True,
+    #     "max_length": BLOCK_SIZE,
+    #     "truncation": True,
+    #     "return_tensors": "pt"
+    # }
+
+    # output_ds = tokenizer(text_chunks, **tokenizer_kwargs)
+    # output_ds["labels"] = output_ds["input_ids"].clone()
+    # return DictDataset(output_ds)
+
 def get_ds(split, tokenizer):
-    ds = load_dataset("tiny_shakespeare")[split]
-    text = ds["text"][0]
-    input_tokens = tokenizer.encode(text, return_tensors="np")[0]
+    ds = load_dataset(DATASET)[split]
+
+    ray_ds = ray.data.from_huggingface(ds).repartition(1000)
 
 
-    # Split input tokens into chunks
-    num_tokens = len(input_tokens)
-    start_idx = 0
-    end_idx = BLOCK_SIZE
-    token_chunks = []
-    while start_idx < num_tokens:
-        token_chunk = input_tokens[start_idx:end_idx]
-        token_chunks.append(token_chunk)
-        start_idx += BLOCK_SIZE - OVERLAP_LENGTH
-        end_idx += BLOCK_SIZE - OVERLAP_LENGTH
+    def tokenize(batch):
+        full_text = list(batch["prompt"] + batch["response"])
+        ret = tokenizer(
+            full_text,
+            max_length=BLOCK_SIZE,
+            truncation=True,
+            padding="max_length",
+            return_tensors="np",
+        )
+        ret["labels"] = ret["input_ids"].copy()
+        return dict(ret)
 
-    # Join token chunks back into strings
-    text_chunks = []
-    for chunk in token_chunks:
-        text_chunks.append(tokenizer.decode(chunk))
+    ray_ds = ray_ds.map_batches(tokenize, batch_size=16).materialize()
 
+    df = ray_ds.to_pandas()
 
-    tokenizer_kwargs = {
-        "padding": True,
-        "max_length": BLOCK_SIZE,
-        "truncation": True,
-        "return_tensors": "pt"
-    }
+    dict_ds = {}
+    for column in df.columns:
+        dict_ds[column] = torch.from_numpy(np.array(df[column].tolist()))
 
-    output_ds = tokenizer(text_chunks, **tokenizer_kwargs)
-    output_ds["labels"] = output_ds["input_ids"].clone()
-    return DictDataset(output_ds)
+    return DictDataset(dict_ds)
     
 def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
     """
@@ -95,16 +126,17 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     tokenizer.pad_token = tokenizer.eos_token
     
-    with accelerator.main_process_first():
-        train_ds = get_ds(split="train", tokenizer=tokenizer)
-        valid_ds = get_ds(split="validation", tokenizer=tokenizer)
-
+    train_ds = get_ds(split="train", tokenizer=tokenizer)
+    valid_ds = get_ds(split="test", tokenizer=tokenizer)
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
         train_ds,
         shuffle=True, 
         batch_size=batch_size, 
+        # if drop_last is False, I don't know what the expected behavior is but if the 
+        # total number of samples have to be divisible by num_gpus there is no 
+        # ambiguity.
         drop_last=True
     )
     valid_dataloader = DataLoader(
@@ -143,9 +175,16 @@ def training_function(kwargs: dict):
 
 
     set_seed(seed)
-    train_dataloader, valid_dataloader = get_dataloaders(accelerator, batch_size)
-    print("Datasets created.")
+    with accelerator.main_process_first():
+        train_dataloader, valid_dataloader = get_dataloaders(accelerator, batch_size)
+
+    if accelerator.is_main_process:
+        print("Datasets created.")
+        print("len(train_dataloader): ", len(train_dataloader))
+        print("len(valid_dataloader): ", len(valid_dataloader))
+
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
+
 
     print("Loading model")
     # config = AutoConfig.from_pretrained(MODEL, trust_remote_code=True)
@@ -159,7 +198,6 @@ def training_function(kwargs: dict):
     print("Done loading model")
     
 
-    
     print("Model initialized with pretrained weights. Training starting...")
 
     if args.grad_ckpt:
@@ -208,8 +246,9 @@ def training_function(kwargs: dict):
 
     # Now we train the model
     if accelerator.is_main_process:
-        print("Starting training")
-        print("number of batches", len(train_dataloader))
+        print("Starting training ...")
+        print("number of batches on main process", len(train_dataloader))
+
     avg_fwd_time, avg_bwd_time, avg_opt_step_time = 0, 0, 0
     s_epoch = time.time()
     for epoch in range(num_epochs):
@@ -319,6 +358,9 @@ def main():
     )
 
     results = trainer.fit()
+
+    breakpoint()
+
 
 
 
