@@ -7,6 +7,7 @@ from datasets import load_dataset
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, get_linear_schedule_with_warmup, set_seed
+import functools
 
 import ray
 from accelerate import Accelerator, DistributedType
@@ -16,6 +17,7 @@ import tqdm
 import os
 from ray import air
 from ray.air import session
+from pathlib import Path
 
 from torch.profiler import profile, record_function, ProfilerActivity
 from accelerate.utils.dataclasses import DeepSpeedPlugin
@@ -36,82 +38,55 @@ BLOCK_SIZE = 2048
 OVERLAP_LENGTH = 128
 
 
-# Custom DictDataset class
-class DictDataset(Dataset):
-    def __init__(self, data_dict):
-        self.data_dict = data_dict
+class MPTTextDataset(Dataset):
+
+    def __init__(self, split) -> None:
+        super().__init__()
+        self.ds = load_dataset(DATASET)[split]
 
     def __getitem__(self, index):
-        return {key: value[index] for key, value in self.data_dict.items()}
-
+        return self.ds[index]["prompt"] + self.ds[index]["response"]
+    
     def __len__(self):
-        return len(next(iter(self.data_dict.values())))
+        return len(self.ds)
+
+
+def collate_fn(batch, tokenizer):
+    out_batch = tokenizer(
+        batch, 
+        padding="longest", 
+        max_length=BLOCK_SIZE, 
+        truncation=True, 
+        return_tensors="pt"    
+    )
+    out_batch["labels"] = out_batch["input_ids"].clone()
+    return out_batch
+
+
+def get_ds(split):
+    return MPTTextDataset(split)
     
-# def get_ds(split, tokenizer):
-    # ds = load_dataset("tiny_shakespeare")[split]
-    # text = ds["text"][0]
-    # input_tokens = tokenizer.encode(text, return_tensors="np")[0]
+# New Code #
+def checkpoint_model(checkpoint_folder, ckpt_id, model, epoch, last_global_step, **kwargs):
+    """Utility function for checkpointing model + optimizer dictionaries
+    The main purpose for this is to be able to resume training from that instant again
+    """
+    checkpoint_state_dict = {
+        "epoch": epoch,
+        "last_global_step": last_global_step,
+    }
+    # Add extra kwargs too
+    checkpoint_state_dict.update(kwargs)
 
+    success = model.save_checkpoint(checkpoint_folder, ckpt_id, checkpoint_state_dict)
+    status_msg = f"checkpointing: checkpoint_folder={checkpoint_folder}, ckpt_id={ckpt_id}"
+    if success:
+        print(f"Success {status_msg}")
+    else:
+        print(f"Failure {status_msg}")
+    return
 
-    # # Split input tokens into chunks
-    # num_tokens = len(input_tokens)
-    # start_idx = 0
-    # end_idx = BLOCK_SIZE
-    # token_chunks = []
-    # while start_idx < num_tokens:
-    #     token_chunk = input_tokens[start_idx:end_idx]
-    #     token_chunks.append(token_chunk)
-    #     start_idx += BLOCK_SIZE - OVERLAP_LENGTH
-    #     end_idx += BLOCK_SIZE - OVERLAP_LENGTH
-
-    # # Join token chunks back into strings
-    # text_chunks = []
-    # for chunk in token_chunks:
-    #     text_chunks.append(tokenizer.decode(chunk))
-
-    # # artificially increase the size of the dataset by repeating it
-    # # text_chunks = text_chunks * 20
-
-    # tokenizer_kwargs = {
-    #     "padding": True,
-    #     "max_length": BLOCK_SIZE,
-    #     "truncation": True,
-    #     "return_tensors": "pt"
-    # }
-
-    # output_ds = tokenizer(text_chunks, **tokenizer_kwargs)
-    # output_ds["labels"] = output_ds["input_ids"].clone()
-    # return DictDataset(output_ds)
-
-def get_ds(split, tokenizer):
-    ds = load_dataset(DATASET)[split]
-
-    ray_ds = ray.data.from_huggingface(ds).repartition(1000)
-
-
-    def tokenize(batch):
-        full_text = list(batch["prompt"] + batch["response"])
-        ret = tokenizer(
-            full_text,
-            max_length=BLOCK_SIZE,
-            truncation=True,
-            padding="max_length",
-            return_tensors="np",
-        )
-        ret["labels"] = ret["input_ids"].copy()
-        return dict(ret)
-
-    ray_ds = ray_ds.map_batches(tokenize, batch_size=16).materialize()
-
-    df = ray_ds.to_pandas()
-
-    dict_ds = {}
-    for column in df.columns:
-        dict_ds[column] = torch.from_numpy(np.array(df[column].tolist()))
-
-    return DictDataset(dict_ds)
-    
-def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
+def get_dataloaders(tokenizer, batch_size: int = 16):
     """
     Creates a set of `DataLoader`s for the `glue` dataset,
     using "bert-base-cased" as the tokenizer.
@@ -122,12 +97,10 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
         batch_size (`int`, *optional*):
             The batch size for the train and validation DataLoaders.
     """
-    # tokenizer = AutoTokenizer.from_pretrained(MODEL)
-    tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
-    tokenizer.pad_token = tokenizer.eos_token
+
     
-    train_ds = get_ds(split="train", tokenizer=tokenizer)
-    valid_ds = get_ds(split="test", tokenizer=tokenizer)
+    train_ds = get_ds(split="train")
+    valid_ds = get_ds(split="test")
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
@@ -137,13 +110,16 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
         # if drop_last is False, I don't know what the expected behavior is but if the 
         # total number of samples have to be divisible by num_gpus there is no 
         # ambiguity.
-        drop_last=True
+        drop_last=True,
+        collate_fn=functools.partial(collate_fn, tokenizer=tokenizer)
     )
     valid_dataloader = DataLoader(
         valid_ds,
         shuffle=False,
         batch_size=EVAL_BATCH_SIZE,
-        drop_last=(accelerator.mixed_precision == "fp8"),
+        # drop_last=(accelerator.mixed_precision == "fp8"),
+        drop_last=True,
+        collate_fn=functools.partial(collate_fn, tokenizer=tokenizer)
     )
 
     return train_dataloader, valid_dataloader
@@ -154,6 +130,12 @@ def training_function(kwargs: dict):
 
     config = kwargs["config"]
     args = argparse.Namespace(**kwargs["args"])
+
+    if not args.output_dir:
+        raise ValueError("--output_dir must be specified")
+    
+    if not Path(args.output_dir).exists():
+        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     # Sample hyper-parameters for learning rate, batch size, seed and a few other HPs
     lr = config["lr"]
@@ -173,10 +155,13 @@ def training_function(kwargs: dict):
         mixed_precision=args.mixed_precision,
     )
 
+    tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
+    tokenizer.pad_token = tokenizer.eos_token
 
     set_seed(seed)
     with accelerator.main_process_first():
-        train_dataloader, valid_dataloader = get_dataloaders(accelerator, batch_size)
+        print("Loading datasets")
+        train_dataloader, valid_dataloader = get_dataloaders(tokenizer, batch_size)
 
     if accelerator.is_main_process:
         print("Datasets created.")
@@ -184,30 +169,29 @@ def training_function(kwargs: dict):
         print("len(valid_dataloader): ", len(valid_dataloader))
 
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
-
-
     print("Loading model")
     # config = AutoConfig.from_pretrained(MODEL, trust_remote_code=True)
-    config = MPTConfig()
+    config = MPTConfig.from_pretrained(MODEL)
     config.attn_config['attn_impl'] = 'torch'
+
+    if accelerator.is_main_process:
+        print("Saving tokenizer and config.")
+        tokenizer.save_pretrained(args.output_dir)
+        config.save_pretrained(args.output_dir)
 
     # if BLOCK_SIZE > config.max_seq_len:
     #     config.update({"max_seq_len": BLOCK_SIZE})
     # model = AutoModelForCausalLM.from_config(config, trust_remote_code=True)
-    model = MPTForCausalLM(config)
-    print("Done loading model")
+    # TODO (Kourosh): Load from the pretrained checkpoint
+    s = time.time()
+    model = MPTForCausalLM.from_pretrained(MODEL, config=config)
+    # model = MPTForCausalLM(config=config)
+    print(f"Done loading model in {time.time() - s} seconds.")
     
 
     print("Model initialized with pretrained weights. Training starting...")
-
     if args.grad_ckpt:
         model.gradient_checkpointing_enable()
-
-    # We could avoid this line since the accelerator is set with `device_placement=True` (default value).
-    # Note that if you are placing tensors on devices manually, this line absolutely needs to be before the optimizer
-    # creation otherwise training will not work on TPU (`accelerate` will kindly throw an error to make us aware of that).
-    # model = model.to(accelerator.device)
-    # Instantiate optimizer
 
     optimizer_cls = (
         torch.optim.AdamW
@@ -240,9 +224,9 @@ def training_function(kwargs: dict):
     # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
     # prepare method.
 
-    model, optimizer, train_dataloader, valid_dataloader, lr_scheduler = accelerator.prepare(
-        model, optimizer, train_dataloader, valid_dataloader, lr_scheduler
-    )
+    s = time.time()
+    model, optimizer, train_dataloader, valid_dataloader, lr_scheduler = accelerator.prepare(model, optimizer, train_dataloader, valid_dataloader, lr_scheduler)
+    print(f"Prepare done in {time.time() - s} seconds.")
 
     # Now we train the model
     if accelerator.is_main_process:
@@ -253,13 +237,15 @@ def training_function(kwargs: dict):
     s_epoch = time.time()
     for epoch in range(num_epochs):
         model.train()
+        loss_sum = torch.tensor(0.0).to(accelerator.device)
         for step, batch in tqdm.tqdm(enumerate(train_dataloader)):
             # We could avoid this line since we set the accelerator with `device_placement=True`.
-            # batch = tree.map_structure(lambda x: x.to(accelerator.device), batch)
+            batch = tree.map_structure(lambda x: x.to(accelerator.device), batch)
             with accelerator.accumulate(model):
                 s_fwd = time.time()
                 outputs = model(**batch)
                 loss = outputs.loss
+                loss_sum += loss
                 e_fwd = time.time()
                 avg_fwd_time += e_fwd - s_fwd
                 s_bwd = time.time()
@@ -273,33 +259,60 @@ def training_function(kwargs: dict):
                 optimizer.zero_grad()
                 e_opt_step = time.time()
                 avg_opt_step_time += e_opt_step - s_opt_step
+                
+            if accelerator.is_main_process:
+                accelerator.print(f"[epoch {epoch} step {step}] loss: {loss.item()}")
 
-        print("avg fwd time: ", avg_fwd_time / (step + 1))
-        print("avg bwd time: ", avg_bwd_time / (step + 1))
-        print("avg opt step time: ", avg_opt_step_time / (step + 1))
+        e_epoch = time.time()
+        accelerator.print("Train time per epoch: ", e_epoch - s_epoch)
 
-    e_epoch = time.time()
-    print("time per epoch: ", e_epoch - s_epoch)
-
-    session.report({
-        "len of train loader": len(train_dataloader),
-        "number of iterations": step + 1,
-        "time per epoch": e_epoch - s_epoch,
-        "avg fwd time": avg_fwd_time / (step + 1),
-        "avg bwd time": avg_bwd_time / (step + 1),
-    })
-        # model.eval()
-        # for step, batch in enumerate(valid_dataloader):
-        #     # We could avoid this line since we set the accelerator with `device_placement=True`.
-
-        #     batch = tree.map_structure(lambda x: x.to(accelerator.device), batch)
-        #     with torch.no_grad():
-        #         outputs = model(**batch)
-        #     add_metrics_from_preds(outputs, batch)
+        eval_s_epoch = time.time()
+        model.eval()
+        eval_loss_sum = torch.tensor(0.0).to(accelerator.device)
+        for eval_step, batch in tqdm.tqdm(enumerate(valid_dataloader)):
+            batch = tree.map_structure(lambda x: x.to(accelerator.device), batch)
+            with torch.no_grad():
+                outputs = model(**batch)
+                eval_loss_sum += outputs.loss
+                if accelerator.is_main_process:
+                    accelerator.print(f"[epoch {epoch} eval_step {eval_step}] loss: {loss.item()}")
         
-        # eval_metric = metric.compute()
-        # # Use accelerator.print to print only on the main process.
-        # accelerator.print(f"epoch {epoch}:", eval_metric)
+        eval_e_epoch = time.time()
+        accelerator.print("Eval time per epoch: ", eval_e_epoch - eval_s_epoch)
+
+        accelerator.print("avg fwd time: ", avg_fwd_time / (step + 1))
+        accelerator.print("avg bwd time: ", avg_bwd_time / (step + 1))
+        accelerator.print("avg opt step time: ", avg_opt_step_time / (step + 1))
+
+
+        session.report(
+            {
+                "epoch": epoch,
+                "train_loss": loss_sum.item() / len(train_dataloader),
+                "eval_loss": eval_loss_sum.item() / len(valid_dataloader),
+                "number of iterations": step + 1,
+                "Train time per epoch": e_epoch - s_epoch,
+                "Eval time per epoch": eval_e_epoch - eval_s_epoch,
+                "avg fwd time": avg_fwd_time / (step + 1),
+                "avg bwd time": avg_bwd_time / (step + 1),
+            },
+        )
+    
+        checkpoint_model(args.output_dir, epoch, model, epoch, step + 1)
+
+
+
+    if args.output_dir is not None:
+        accelerator.print(f"Saving bin version of model in {args.output_dir}")
+        accelerator.wait_for_everyone()
+        unwrapped_model = accelerator.unwrap_model(model)
+        unwrapped_model.save_pretrained(
+            args.output_dir,
+            is_main_process=accelerator.is_main_process,
+            save_function=accelerator.save,
+            state_dict=accelerator.get_state_dict(model),
+        )
+
 
 
 def main():
@@ -320,13 +333,19 @@ def main():
 
     parser.add_argument("--grad_ckpt", action="store_true", help="If passed, will use gradient checkpointing.")
 
+    parser.add_argument("--output_dir", type=str, help="Path to output directory.")
+
     parser.add_argument("--ds_config", type=str, help="Path to deepspeed config file. This should be on shared storage accessible by all nodes.")
 
     parser.add_argument("--exp-name", type=str, help="Name of experiment to log to wandb.")
+
+    parser.add_argument("--num-epochs", type=int, default=10, help="Number of epochs to train for.")
+
+    parser.add_argument("--lr", type=float, default=1e-6, help="Learning rate to use.")
     args = parser.parse_args()
     config = {
-        "lr": 2e-5, 
-        "num_epochs": 1, 
+        "lr": args.lr, 
+        "num_epochs": args.num_epochs, 
         "seed": 42, 
         "batch_size": args.bs, 
         "gradient_accumulation_steps": args.grad_accum,
@@ -338,6 +357,7 @@ def main():
 
 
     ray.init()
+    from ray.train.torch import TorchConfig
     trainer = AccelerateTrainer(
         training_function,
         train_loop_config={"config": config, "args": vars(args)},
@@ -346,6 +366,7 @@ def main():
             num_workers=args.num_gpus, 
             use_gpu=True,  
         ),
+        torch_config=TorchConfig(timeout_s=60),
         run_config=air.RunConfig(
             callbacks=[
                 WandbLoggerCallback(
@@ -353,14 +374,12 @@ def main():
                     name=args.exp_name,
                     api_key_file="/mnt/shared_storage/kourosh/wandb_key",
                 )
-            ]
-        ),
+            ],
+        )
     )
 
     results = trainer.fit()
-
     breakpoint()
-
 
 
 

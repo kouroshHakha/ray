@@ -13,6 +13,7 @@ from huggingface_hub import snapshot_download
 
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+import ray
 
 
 INSTRUCTION_KEY = "### Instruction:"
@@ -74,6 +75,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(
         description='Load a HF CausalLM Model and use it to generate text.')
     parser.add_argument('-n', '--name_or_path', type=str, required=True)
+    parser.add_argument('--is_mpt', action="store_true", help="Is this an MPT model?")
     parser.add_argument(
         '-p',
         '--prompts',
@@ -168,6 +170,7 @@ def maybe_synchronize():
         torch.cuda.synchronize()
 
 
+@ray.remote(num_gpus=1)
 def main(args: Namespace) -> None:
     # TODO
     # if args.fsdp and (not torch.cuda.is_available()):
@@ -196,12 +199,18 @@ def main(args: Namespace) -> None:
         'revision': args.revision,
     }
     try:
-        config = AutoConfig.from_pretrained(args.name_or_path,
-                                            **from_pretrained_kwargs)
-        if args.attn_impl is not None and hasattr(config, 'attn_config'):
-            config.attn_config['attn_impl'] = args.attn_impl
-        if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
-            config.max_seq_len = args.max_seq_len
+
+        # New Code for MPT
+        if args.is_mpt:
+            from ray.rllib.examples.mpt_repo.mpt.module.configuration_mpt import MPTConfig
+            config = MPTConfig.from_pretrained(args.name_or_path, **from_pretrained_kwargs)
+        else:
+            config = AutoConfig.from_pretrained(args.name_or_path,
+                                                **from_pretrained_kwargs)
+            if args.attn_impl is not None and hasattr(config, 'attn_config'):
+                config.attn_config['attn_impl'] = args.attn_impl
+            if args.max_seq_len is not None and hasattr(config, 'max_seq_len'):
+                config.max_seq_len = args.max_seq_len
 
     except Exception as e:
         raise RuntimeError(
@@ -220,13 +229,19 @@ def main(args: Namespace) -> None:
     s = time.time()
     print(f'Loading HF model with dtype={model_dtype}...')
     try:
-        model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
-                                                     config=config,
-                                                     low_cpu_mem_usage=True,
-                                                     torch_dtype=model_dtype,
-                                                    #  device_map="auto",
-                                                     **from_pretrained_kwargs)
-        
+
+        # New Code for MPT
+        if args.is_mpt:
+            from ray.rllib.examples.mpt_repo.mpt.module.modeling_mpt import MPTForCausalLM
+            model = MPTForCausalLM.from_pretrained(args.name_or_path, config=config, low_cpu_mem_usage=True, torch_dtype=model_dtype,  **from_pretrained_kwargs)
+        else:
+            model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
+                                                        config=config,
+                                                        low_cpu_mem_usage=True,
+                                                        torch_dtype=model_dtype,
+                                                        #  device_map="auto",
+                                                        **from_pretrained_kwargs)
+            
     except Exception as e:
         raise RuntimeError(
             'If you are having auth problems, try logging in via `huggingface-cli login` ' +\
@@ -356,14 +371,6 @@ def main(args: Namespace) -> None:
             gen_tokens = torch.sum(encoded_gen != tokenizer.pad_token_id,
                                    axis=1).numpy(force=True)  # type: ignore
 
-            # Print generations
-            delimiter = '#' * 100
-            for prompt, gen in zip(batch, decoded_gen):
-                continuation = gen[len(prompt):]
-                print(delimiter)
-                print('\033[92m' + prompt + '\033[0m' + continuation)
-            print(delimiter)
-
             # Print timing info
             bs = len(batch)
             output_tokens = gen_tokens - input_tokens
@@ -385,5 +392,17 @@ def main(args: Namespace) -> None:
             print(f'{output_tok_per_sec=:.2f}tok/sec')
 
 
+            return batch, decoded_gen
+
+
 if __name__ == '__main__':
-    main(parse_args())
+
+    batch, decoded_gen = ray.get(main.remote(parse_args()))
+
+    # Print generations
+    delimiter = '#' * 100
+    for prompt, gen in zip(batch, decoded_gen):
+        continuation = gen[len(prompt):]
+        print(delimiter)
+        print('\033[92m' + prompt + '\033[0m' + continuation)
+    print(delimiter)

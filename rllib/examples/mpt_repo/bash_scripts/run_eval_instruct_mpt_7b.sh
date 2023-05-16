@@ -12,7 +12,9 @@ CUDA_VISIBLE_DEVICES=0 python \
     --max_new_tokens 512 \
     --do_sample True \
     --repetition_penalty 1.1 \
+    --is_mpt \
     --prompts \
-      "Teach me some cuss words in Spanish." 
-      # "How best should I travel from London to Edinburgh, UK?" \
-      # "Write a short story about a robot that has a nice day." \
+      "How best should I travel from London to Edinburgh, UK?" \
+      "Tell me whether these are states or countries: Canada, South Carolina, New York, New Jersey, Japan, Germany, Australia, USA, Georgia, United Kingdom." \
+      "Classify the musical genres of the following bands: Metallica, AC/DC, Aerosmith, Madonna" \
+      "Which is a bird or fish: Red snapper or Red kite"
