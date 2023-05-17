@@ -36,13 +36,19 @@ MODEL = "mosaicml/mpt-7b"
 DATASET = "mosaicml/dolly_hhrlhf"
 BLOCK_SIZE = 2048
 OVERLAP_LENGTH = 128
+OPTIM_BETAS = (0.9, 0.999)
+OPTIM_EPS = 1e-8
+OPTIM_WEIGHT_DECAY = 0.
 
 
 class MPTTextDataset(Dataset):
 
-    def __init__(self, split) -> None:
+    def __init__(self, split, smoke_test: bool = False) -> None:
         super().__init__()
+
         self.ds = load_dataset(DATASET)[split]
+        if smoke_test:
+            self.ds = self.ds.select(np.arange(1000))
 
     def __getitem__(self, index):
         return self.ds[index]["prompt"] + self.ds[index]["response"]
@@ -63,8 +69,8 @@ def collate_fn(batch, tokenizer):
     return out_batch
 
 
-def get_ds(split):
-    return MPTTextDataset(split)
+def get_ds(split, smoke_test: bool = False):
+    return MPTTextDataset(split, smoke_test)
     
 # New Code #
 def checkpoint_model(checkpoint_folder, ckpt_id, model, epoch, last_global_step, **kwargs):
@@ -86,7 +92,7 @@ def checkpoint_model(checkpoint_folder, ckpt_id, model, epoch, last_global_step,
         print(f"Failure {status_msg}")
     return
 
-def get_dataloaders(tokenizer, batch_size: int = 16):
+def get_dataloaders(tokenizer, batch_size: int = 16, smoke_test: bool = False):
     """
     Creates a set of `DataLoader`s for the `glue` dataset,
     using "bert-base-cased" as the tokenizer.
@@ -99,8 +105,8 @@ def get_dataloaders(tokenizer, batch_size: int = 16):
     """
 
     
-    train_ds = get_ds(split="train")
-    valid_ds = get_ds(split="test")
+    train_ds = get_ds(split="train", smoke_test=smoke_test)
+    valid_ds = get_ds(split="test", smoke_test=smoke_test)
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
@@ -152,7 +158,7 @@ def training_function(kwargs: dict):
     accelerator = Accelerator(
         deepspeed_plugin=ds_plugin,
         gradient_accumulation_steps=gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision,
+        mixed_precision=args.mx,
     )
 
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
@@ -161,7 +167,7 @@ def training_function(kwargs: dict):
     set_seed(seed)
     with accelerator.main_process_first():
         print("Loading datasets")
-        train_dataloader, valid_dataloader = get_dataloaders(tokenizer, batch_size)
+        train_dataloader, valid_dataloader = get_dataloaders(tokenizer, batch_size, smoke_test=args.smoke_test)
 
     if accelerator.is_main_process:
         print("Datasets created.")
@@ -169,10 +175,11 @@ def training_function(kwargs: dict):
         print("len(valid_dataloader): ", len(valid_dataloader))
 
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
-    print("Loading model")
+    print("Loading model ...")
     # config = AutoConfig.from_pretrained(MODEL, trust_remote_code=True)
     config = MPTConfig.from_pretrained(MODEL)
-    config.attn_config['attn_impl'] = 'torch'
+    config.attn_config['attn_impl'] = args.attn_impl
+    config.attn_config['alibi'] = args.use_alibi
 
     if accelerator.is_main_process:
         print("Saving tokenizer and config.")
@@ -199,7 +206,13 @@ def training_function(kwargs: dict):
         or "optimizer" not in accelerator.state.deepspeed_plugin.deepspeed_config
         else DummyOptim
     )
-    optimizer = optimizer_cls(model.parameters(), lr=lr)
+    optimizer = optimizer_cls(
+        model.parameters(), 
+        lr=lr, 
+        betas=OPTIM_BETAS, 
+        weight_decay=OPTIM_WEIGHT_DECAY, 
+        eps=OPTIM_EPS
+    )
 
 
     # Instantiate scheduler
@@ -234,8 +247,8 @@ def training_function(kwargs: dict):
         print("number of batches on main process", len(train_dataloader))
 
     avg_fwd_time, avg_bwd_time, avg_opt_step_time = 0, 0, 0
-    s_epoch = time.time()
     for epoch in range(num_epochs):
+        s_epoch = time.time()
         model.train()
         loss_sum = torch.tensor(0.0).to(accelerator.device)
         for step, batch in tqdm.tqdm(enumerate(train_dataloader)):
@@ -253,6 +266,9 @@ def training_function(kwargs: dict):
                 e_bwd = time.time()
                 avg_bwd_time += e_bwd - s_bwd
 
+                # if accelerator.sync_gradients:
+                #     accelerator.clip_grad_norm_(model.parameters(), 1.0)
+
                 s_opt_step = time.time()
                 optimizer.step()
                 lr_scheduler.step()
@@ -267,15 +283,15 @@ def training_function(kwargs: dict):
         accelerator.print("Train time per epoch: ", e_epoch - s_epoch)
 
         eval_s_epoch = time.time()
-        model.eval()
-        eval_loss_sum = torch.tensor(0.0).to(accelerator.device)
-        for eval_step, batch in tqdm.tqdm(enumerate(valid_dataloader)):
-            batch = tree.map_structure(lambda x: x.to(accelerator.device), batch)
-            with torch.no_grad():
-                outputs = model(**batch)
-                eval_loss_sum += outputs.loss
-                if accelerator.is_main_process:
-                    accelerator.print(f"[epoch {epoch} eval_step {eval_step}] loss: {loss.item()}")
+        # model.eval()
+        # eval_loss_sum = torch.tensor(0.0).to(accelerator.device)
+        # for eval_step, batch in tqdm.tqdm(enumerate(valid_dataloader)):
+        #     batch = tree.map_structure(lambda x: x.to(accelerator.device), batch)
+        #     with torch.no_grad():
+        #         outputs = model(**batch)
+        #         eval_loss_sum += outputs.loss
+        #         if accelerator.is_main_process:
+        #             accelerator.print(f"[epoch {epoch} eval_step {eval_step}] loss: {loss.item()}")
         
         eval_e_epoch = time.time()
         accelerator.print("Eval time per epoch: ", eval_e_epoch - eval_s_epoch)
@@ -289,7 +305,7 @@ def training_function(kwargs: dict):
             {
                 "epoch": epoch,
                 "train_loss": loss_sum.item() / len(train_dataloader),
-                "eval_loss": eval_loss_sum.item() / len(valid_dataloader),
+                # "eval_loss": eval_loss_sum.item() / len(valid_dataloader),
                 "number of iterations": step + 1,
                 "Train time per epoch": e_epoch - s_epoch,
                 "Eval time per epoch": eval_e_epoch - eval_s_epoch,
@@ -298,27 +314,56 @@ def training_function(kwargs: dict):
             },
         )
     
-        checkpoint_model(args.output_dir, epoch, model, epoch, step + 1)
+    #     checkpoint_model(args.output_dir, epoch, model, epoch, step + 1)
 
 
 
-    if args.output_dir is not None:
-        accelerator.print(f"Saving bin version of model in {args.output_dir}")
-        accelerator.wait_for_everyone()
-        unwrapped_model = accelerator.unwrap_model(model)
-        unwrapped_model.save_pretrained(
-            args.output_dir,
-            is_main_process=accelerator.is_main_process,
-            save_function=accelerator.save,
-            state_dict=accelerator.get_state_dict(model),
-        )
+    # if args.output_dir is not None:
+    #     accelerator.print(f"Saving bin version of model in {args.output_dir}")
+    #     accelerator.wait_for_everyone()
+    #     unwrapped_model = accelerator.unwrap_model(model)
+    #     unwrapped_model.save_pretrained(
+    #         args.output_dir,
+    #         is_main_process=accelerator.is_main_process,
+    #         save_function=accelerator.save,
+    #         state_dict=accelerator.get_state_dict(model),
+    #     )
 
+
+def print_dataset_stats():
+
+    tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
+    tokenizer.pad_token = tokenizer.eos_token
+
+
+    tloader, vloader = get_dataloaders(tokenizer, batch_size=16)    
+
+    for mode, dloader in zip(["train", "test"], [tloader, vloader]):
+
+        num_samples = 0
+        num_tokens = 0
+        sample_tokens = []
+        for batch in dloader:
+            num_samples += batch["input_ids"].shape[0]
+            num_tokens += batch["input_ids"].shape[0] * batch["input_ids"].shape[1]
+            sample_tokens += list(batch["attention_mask"].sum(-1))
+
+        print("-"*50)
+        print(f"[{mode}] num samples: {num_samples}, num tokens: {num_tokens/1e6:.1f}M")
+        print(f"Total number of useful tokens: {sum(sample_tokens)/1e6:.1f}M")
+        print(f"AVG tokens per sample: {np.mean(sample_tokens)}")
+        print(f"STD tokens per sample: {np.std(sample_tokens)}")
+        print(f"MIN tokens per sample: {np.min(sample_tokens)}")
+        print(f"MAX tokens per sample: {np.max(sample_tokens)}")
+        print(f"AVG tokens per batch: {num_tokens / num_samples}")
+    
+    breakpoint()
 
 
 def main():
     parser = argparse.ArgumentParser(description="Simple example of training script.")
     parser.add_argument(
-        "--mixed_precision",
+        "--mx",
         type=str,
         default=None,
         choices=["no", "fp16", "bf16", "fp8"],
@@ -333,6 +378,9 @@ def main():
 
     parser.add_argument("--grad_ckpt", action="store_true", help="If passed, will use gradient checkpointing.")
 
+    parser.add_argument("--attn-impl", type=str, help="Attention implementation to use. Choose between `torch`, `triton`, or `flash`.", default="torch")
+    parser.add_argument("--use-alibi", action="store_true", help="Use AliBi")
+
     parser.add_argument("--output_dir", type=str, help="Path to output directory.")
 
     parser.add_argument("--ds_config", type=str, help="Path to deepspeed config file. This should be on shared storage accessible by all nodes.")
@@ -340,8 +388,8 @@ def main():
     parser.add_argument("--exp-name", type=str, help="Name of experiment to log to wandb.")
 
     parser.add_argument("--num-epochs", type=int, default=10, help="Number of epochs to train for.")
-
-    parser.add_argument("--lr", type=float, default=1e-6, help="Learning rate to use.")
+    parser.add_argument("--smoke-test", action="store_true", help="To run a smoke test on first 1000 samples.")
+    parser.add_argument("--lr", type=float, default=5e-6, help="Learning rate to use.")
     args = parser.parse_args()
     config = {
         "lr": args.lr, 
@@ -366,7 +414,7 @@ def main():
             num_workers=args.num_gpus, 
             use_gpu=True,  
         ),
-        torch_config=TorchConfig(timeout_s=60),
+        # torch_config=TorchConfig(timeout_s=60),
         run_config=air.RunConfig(
             callbacks=[
                 WandbLoggerCallback(
@@ -379,6 +427,7 @@ def main():
     )
 
     results = trainer.fit()
+    
     breakpoint()
 
 
