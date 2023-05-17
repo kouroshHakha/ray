@@ -39,6 +39,8 @@
 #include "ray/util/sample.h"
 #include "ray/util/util.h"
 
+using namespace std::chrono_literals;
+
 namespace {
 
 #define RAY_CHECK_ENUM(x, y) \
@@ -240,7 +242,8 @@ NodeManager::NodeManager(instrumented_io_context &io_service,
                     },
                     /*delay_executor*/
                     [this](std::function<void()> fn, int64_t delay_ms) {
-                      RAY_UNUSED(execute_after(io_service_, fn, delay_ms));
+                      RAY_UNUSED(execute_after(
+                          io_service_, fn, std::chrono::milliseconds(delay_ms)));
                     }),
       node_manager_server_("NodeManager",
                            config.node_manager_port,
@@ -398,7 +401,7 @@ NodeManager::NodeManager(instrumented_io_context &io_service,
       std::move(options),
       /*delay_executor=*/
       [this](std::function<void()> task, uint32_t delay_ms) {
-        return execute_after(io_service_, task, delay_ms);
+        return execute_after(io_service_, task, std::chrono::milliseconds(delay_ms));
       },
       /*runtime_env_agent_factory=*/
       [this](const std::string &ip_address, int port) {
@@ -550,8 +553,8 @@ ray::Status NodeManager::RegisterGcs() {
                       << "GCS is not backed by a DB and restarted or there is data loss "
                       << "in the DB.";
                 }
-                *checking_ptr = false;
               }
+              *checking_ptr = false;
             },
             /* timeout_ms = */ 30000));
       },
@@ -1486,9 +1489,6 @@ void NodeManager::DisconnectClient(const std::shared_ptr<ClientConnection> &clie
                                    disconnect_detail,
                                    worker->GetProcess().GetId(),
                                    creation_task_exception);
-  RAY_CHECK_OK(
-      gcs_client_->Workers().AsyncReportWorkerFailure(worker_failure_data_ptr, nullptr));
-
   if (is_worker) {
     const ActorID &actor_id = worker->GetActorId();
     const TaskID &task_id = worker->GetAssignedTaskId();
@@ -1565,7 +1565,25 @@ void NodeManager::DisconnectClient(const std::shared_ptr<ClientConnection> &clie
   cluster_task_manager_->CancelTaskForOwner(worker->GetAssignedTaskId());
 
   client->Close();
-
+  auto proc = worker->GetProcess();
+  if (is_driver) {
+    // Check driver's liveness is not possible since driver
+    // can be a zombie. Report the failure immediately.
+    RAY_CHECK_OK(gcs_client_->Workers().AsyncReportWorkerFailure(worker_failure_data_ptr,
+                                                                 nullptr));
+  } else {
+    // Otherwise, do the checking
+    async_retry_until(
+        io_service_.get_executor(),
+        [proc]() { return proc.IsAlive() == false; },
+        std::nullopt,
+        100ms,
+        [this, worker_failure_data_ptr](bool ret) {
+          RAY_CHECK(ret);
+          RAY_CHECK_OK(gcs_client_->Workers().AsyncReportWorkerFailure(
+              worker_failure_data_ptr, nullptr));
+        });
+  }
   // TODO(rkn): Tell the object manager that this client has disconnected so
   // that it can clean up the wait requests for this client. Currently I think
   // these can be leaked.
@@ -2502,7 +2520,7 @@ void NodeManager::HandleGetNodeStats(rpc::GetNodeStatsRequest node_stats_request
                                      rpc::GetNodeStatsReply *reply,
                                      rpc::SendReplyCallback send_reply_callback) {
   // Report object spilling stats.
-  local_object_manager_.FillObjectSpillingStats(reply);
+  local_object_manager_.FillObjectStoreStats(reply);
   // Report object store stats.
   object_manager_.FillObjectStoreStats(reply);
   // As a result of the HandleGetNodeStats, we are collecting information from all

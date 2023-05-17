@@ -68,7 +68,6 @@ from ray._private.gcs_pubsub import (
     GcsErrorSubscriber,
     GcsFunctionKeySubscriber,
     GcsLogSubscriber,
-    GcsPublisher,
 )
 from ray._private.inspect_util import is_cython
 from ray._private.ray_logging import (
@@ -80,6 +79,7 @@ from ray._private.ray_logging import (
 from ray._private.runtime_env.constants import RAY_JOB_CONFIG_JSON_ENV_VAR
 from ray._private.runtime_env.py_modules import upload_py_modules_if_needed
 from ray._private.runtime_env.working_dir import upload_working_dir_if_needed
+from ray._private.runtime_env.setup_hook import upload_worker_setup_hook_if_needed
 from ray._private.storage import _load_class
 from ray._private.utils import check_oversized_function, get_ray_doc_version
 from ray.exceptions import ObjectStoreFullError, RayError, RaySystemError, RayTaskError
@@ -96,6 +96,7 @@ from ray.util.debug import log_once
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.util.tracing.tracing_helper import _import_from_string
 from ray.widgets import Template
+from ray.widgets.util import ensure_ipywidgets_dep
 
 SCRIPT_MODE = 0
 WORKER_MODE = 1
@@ -462,6 +463,11 @@ class Worker:
         # Create the lock here because the serializer will use it before
         # initializing Ray.
         self.lock = threading.RLock()
+        # By default, don't show logs from other drivers. This is set to true by Serve
+        # in order to stream logs from the controller and replica actors across
+        # different drivers that connect to the same Serve instance.
+        # See https://github.com/ray-project/ray/pull/35070.
+        self._filter_logs_by_job = True
 
     @property
     def connected(self):
@@ -738,12 +744,12 @@ class Worker:
                     "which is not an ray.ObjectRef."
                 )
 
-        timeout_ms = int(timeout * 1000) if timeout else -1
+        timeout_ms = int(timeout * 1000) if timeout is not None else -1
         data_metadata_pairs = self.core_worker.get_objects(
             object_refs, self.current_task_id, timeout_ms
         )
         debugger_breakpoint = b""
-        for (data, metadata) in data_metadata_pairs:
+        for data, metadata in data_metadata_pairs:
             if metadata:
                 metadata_fields = metadata.split(b",")
                 if len(metadata_fields) >= 2 and metadata_fields[1].startswith(
@@ -871,8 +877,11 @@ class Worker:
                     last_polling_batch_size = 0
                     continue
 
-                # Don't show logs from other drivers.
-                if data["job"] and data["job"] != job_id_hex:
+                if (
+                    self._filter_logs_by_job
+                    and data["job"]
+                    and data["job"] != job_id_hex
+                ):
                     last_polling_batch_size = 0
                     continue
 
@@ -1011,6 +1020,10 @@ class BaseContext(metaclass=ABCMeta):
     Base class for RayContext and ClientContext
     """
 
+    dashboard_url: Optional[str]
+    python_version: str
+    ray_version: str
+
     @abstractmethod
     def disconnect(self):
         """
@@ -1028,6 +1041,73 @@ class BaseContext(metaclass=ABCMeta):
     def __exit__(self):
         pass
 
+    def _context_table_template(self):
+        if self.dashboard_url:
+            dashboard_row = Template("context_dashrow.html.j2").render(
+                dashboard_url="http://" + self.dashboard_url
+            )
+        else:
+            dashboard_row = None
+
+        return Template("context_table.html.j2").render(
+            python_version=self.python_version,
+            ray_version=self.ray_version,
+            dashboard_row=dashboard_row,
+        )
+
+    def _repr_html_(self):
+        return Template("context.html.j2").render(
+            context_logo=Template("context_logo.html.j2").render(),
+            context_table=self._context_table_template(),
+        )
+
+    @ensure_ipywidgets_dep("8")
+    def _get_widget_bundle(self, **kwargs) -> Dict[str, Any]:
+        """Get the mimebundle for the widget representation of the context.
+
+        Args:
+            **kwargs: Passed to the _repr_mimebundle_() function for the widget
+
+        Returns:
+            Dictionary ("mimebundle") of the widget representation of the context.
+        """
+        import ipywidgets
+
+        disconnect_button = ipywidgets.Button(
+            description="Disconnect",
+            disabled=False,
+            button_style="",
+            tooltip="Disconnect from the Ray cluster",
+            layout=ipywidgets.Layout(margin="auto 0px 0px 0px"),
+        )
+
+        def disconnect_callback(button):
+            button.disabled = True
+            button.description = "Disconnecting..."
+            self.disconnect()
+            button.description = "Disconnected"
+
+        disconnect_button.on_click(disconnect_callback)
+        left_content = ipywidgets.VBox(
+            [
+                ipywidgets.HTML(Template("context_logo.html.j2").render()),
+                disconnect_button,
+            ],
+            layout=ipywidgets.Layout(),
+        )
+        right_content = ipywidgets.HTML(self._context_table_template())
+        widget = ipywidgets.HBox(
+            [left_content, right_content], layout=ipywidgets.Layout(width="100%")
+        )
+        return widget._repr_mimebundle_(**kwargs)
+
+    def _repr_mimebundle_(self, **kwargs):
+        bundle = self._get_widget_bundle(**kwargs)
+
+        # Overwrite the widget html repr and default repr with those of the BaseContext
+        bundle.update({"text/html": self._repr_html_(), "text/plain": repr(self)})
+        return bundle
+
 
 @dataclass
 class RayContext(BaseContext, Mapping):
@@ -1039,10 +1119,10 @@ class RayContext(BaseContext, Mapping):
     python_version: str
     ray_version: str
     ray_commit: str
-    protocol_version = Optional[str]
-    address_info: Dict[str, Optional[str]]
+    protocol_version: Optional[str]
 
     def __init__(self, address_info: Dict[str, Optional[str]]):
+        super().__init__()
         self.dashboard_url = get_dashboard_url()
         self.python_version = "{}.{}.{}".format(*sys.version_info[:3])
         self.ray_version = ray.__version__
@@ -1083,20 +1163,6 @@ class RayContext(BaseContext, Mapping):
     def disconnect(self):
         # Include disconnect() to stay consistent with ClientContext
         ray.shutdown()
-
-    def _repr_html_(self):
-        if self.dashboard_url:
-            dashboard_row = Template("context_dashrow.html.j2").render(
-                dashboard_url="http://" + self.dashboard_url
-            )
-        else:
-            dashboard_row = None
-
-        return Template("context.html.j2").render(
-            python_version=self.python_version,
-            ray_version=self.ray_version,
-            dashboard_row=dashboard_row,
-        )
 
 
 global_worker = Worker()
@@ -2074,7 +2140,7 @@ def connect(
     ray._private.state.state._initialize_global_state(
         ray._raylet.GcsClientOptions.from_gcs_address(node.gcs_address)
     )
-    worker.gcs_publisher = GcsPublisher(address=worker.gcs_client.address)
+    worker.gcs_publisher = ray._raylet.GcsPublisher(address=worker.gcs_client.address)
     # Initialize some fields.
     if mode in (WORKER_MODE, RESTORE_WORKER_MODE, SPILL_WORKER_MODE):
         # We should not specify the job_id if it's `WORKER_MODE`.
@@ -2157,7 +2223,7 @@ def connect(
     # If it's a driver and it's not coming from ray client, we'll prepare the
     # environment here. If it's ray client, the environment will be prepared
     # at the server side.
-    if mode == SCRIPT_MODE and not job_config.client_job and job_config.runtime_env:
+    if mode == SCRIPT_MODE and not job_config._client_job and job_config.runtime_env:
         scratch_dir: str = worker.node.get_runtime_env_dir_path()
         runtime_env = job_config.runtime_env or {}
         runtime_env = upload_py_modules_if_needed(
@@ -2165,6 +2231,10 @@ def connect(
         )
         runtime_env = upload_working_dir_if_needed(
             runtime_env, scratch_dir, logger=logger
+        )
+        runtime_env = upload_worker_setup_hook_if_needed(
+            runtime_env,
+            worker,
         )
         # Remove excludes, it isn't relevant after the upload step.
         runtime_env.pop("excludes", None)
@@ -2187,13 +2257,13 @@ def connect(
                 code_paths.append(script_directory)
         # In client mode, if we use runtime envs with "working_dir", then
         # it'll be handled automatically.  Otherwise, add the current dir.
-        if not job_config.client_job and not job_config.runtime_env_has_working_dir():
+        if not job_config._client_job and not job_config._runtime_env_has_working_dir():
             current_directory = os.path.abspath(os.path.curdir)
             code_paths.append(current_directory)
         if len(code_paths) != 0:
-            job_config.py_driver_sys_path.extend(code_paths)
+            job_config._py_driver_sys_path.extend(code_paths)
 
-    serialized_job_config = job_config.serialize()
+    serialized_job_config = job_config._serialize()
     if not node.should_redirect_logs():
         # Logging to stderr, so give core worker empty logs directory.
         logs_dir = ""
@@ -2464,12 +2534,9 @@ def get(
             to get.
         timeout (Optional[float]): The maximum amount of time in seconds to
             wait before returning. Set this to None will block until the
-            corresponding object becomes available.
-            WARNING: In future ray releases ``timeout=0`` will return the object
-            immediately if it's available, else raise GetTimeoutError in accordance with
-            the above docstring. The current behavior of blocking until objects become
-            available of ``timeout=0`` is considered to be a bug, see
-            https://github.com/ray-project/ray/issues/28465.
+            corresponding object becomes available. Setting ``timeout=0`` will
+            return the object immediately if it's available, else raise
+            GetTimeoutError in accordance with the above docstring.
 
     Returns:
         A Python object or a list of Python objects.
@@ -2480,26 +2547,6 @@ def get(
         Exception: An exception is raised if the task that created the object
             or that created one of the objects raised an exception.
     """
-    if timeout == 0:
-        if os.environ.get("RAY_WARN_RAY_GET_TIMEOUT_ZERO", "1") == "1":
-            import warnings
-
-            warnings.warn(
-                (
-                    "Please use timeout=None if you expect ray.get() to block. "
-                    "Setting timeout=0 in future ray releases will raise "
-                    "GetTimeoutError if the objects references are not available. "
-                    "You could suppress this warning by setting "
-                    "RAY_WARN_RAY_GET_TIMEOUT_ZERO=0."
-                ),
-                UserWarning,
-            )
-
-        # Record this usage in telemetry
-        import ray._private.usage.usage_lib as usage_lib
-
-        usage_lib.record_extra_usage_tag(usage_lib.TagKey.RAY_GET_TIMEOUT_ZERO, "True")
-
     worker = global_worker
     worker.check_connected()
 
@@ -2710,7 +2757,6 @@ def wait(
     worker.check_connected()
     # TODO(swang): Check main thread.
     with profiling.profile("ray.wait"):
-
         # TODO(rkn): This is a temporary workaround for
         # https://github.com/ray-project/ray/issues/997. However, it should be
         # fixed in Arrow instead of here.
