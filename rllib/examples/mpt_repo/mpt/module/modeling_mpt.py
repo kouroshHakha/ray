@@ -18,7 +18,7 @@ from .adapt_tokenizer import AutoTokenizerForMOD, adapt_tokenizer_for_denoising
 from .hf_prefixlm_converter import add_bidirectional_mask_if_missing, convert_hf_causal_lm_to_prefix_lm
 from .meta_init_context import init_empty_weights
 from .param_init_fns import MODEL_INIT_REGISTRY, generic_param_init_fn_
-from fairscale.nn.checkpoint import checkpoint_wrapper
+# from fairscale.nn.checkpoint import checkpoint_wrapper
 
 
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
@@ -29,9 +29,9 @@ class MPTPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["MPTBlock"]
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if value and isinstance(module, MPTBlock):
-            module = checkpoint_wrapper(module)
+    # def _set_gradient_checkpointing(self, module, value=False):
+    #     if value and isinstance(module, MPTBlock):
+    #         module = checkpoint_wrapper(module)
 
 
 class MPTModel(MPTPreTrainedModel):
@@ -92,6 +92,9 @@ class MPTModel(MPTPreTrainedModel):
                 self.attn_bias = torch.zeros(self.attn_bias_shape, device=device, dtype=dtype)
                 self.attn_bias = build_attn_bias(self.attn_impl, self.attn_bias, self.config.n_heads, self.config.max_seq_len, causal=self.is_causal, alibi=self.alibi, alibi_bias_max=self.alibi_bias_max)
             self._attn_bias_initialized = True
+        if self.attn_impl == "torch_anyscale":
+            # attn_bias is by default zero so it's the same as not having it. I am making it None here b/c I think that we do not need it. 
+            return (None, attention_mask)
         if self.attn_impl == 'flash':
             return (self.attn_bias, attention_mask)
         if self.attn_bias is not None:

@@ -4,8 +4,8 @@ import warnings
 from typing import Optional
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from einops import rearrange
-from torch import nn
 from .norm import LPLayerNorm
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int, original_is_causal: bool):
@@ -50,6 +50,67 @@ def scaled_multihead_dot_product_attention(query, key, value, n_heads, softmax_s
     if needs_weights:
         return (out, attn_weight)
     return (out, None)
+
+
+
+def anyscaled_multihead_dot_product_attention(query, key, value, n_heads, softmax_scale=None, attn_bias=None, key_padding_mask=None, is_causal=False, dropout_p=0.0, training=False, needs_weights=False, multiquery=False):
+    if multiquery:
+        raise ValueError("Anyscaled implementation does not support multiquery=True.")
+
+    if attn_bias is not None:
+        raise ValueError("Anyscaled implementation does not support attn_bias.")
+
+    if needs_weights:
+        raise ValueError("Anyscaled implementation does not support needs_weights=True.")
+    
+    q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
+    k = rearrange(key, 'b s (h d) -> b h d s', h=n_heads)
+    v = rearrange(value, 'b s (h d) -> b h s d', h=n_heads)
+
+    (b, _, s_q, d) = q.shape
+    s_k = k.size(-1)
+
+    attn_mask = key_padding_mask
+    if is_causal:
+        s = max(s_q, s_k)
+        causal_mask = torch.ones(s, s, dtype=torch.bool).tril(diagonal=0).to(q.device)
+        causal_mask = ~causal_mask
+        causal_mask = causal_mask[-s_q:, -s_k:]
+        attn_mask = attn_mask & causal_mask
+    
+
+    attn_mask = attn_mask.unsqueeze(0).expand(b, -1, -1)
+    
+    out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=False)
+    min_val = torch.finfo(q.dtype).min
+    (b, _, s_q, d) = q.shape
+    s_k = k.size(-1)
+    # if softmax_scale is None:
+    #     softmax_scale = 1 / math.sqrt(d)
+    # attn_weight = q.matmul(k) * softmax_scale
+    # if attn_bias is not None:
+    #     if attn_bias.size(-1) != 1 and attn_bias.size(-1) != s_k or (attn_bias.size(-2) != 1 and attn_bias.size(-2) != s_q):
+    #         raise RuntimeError(f'attn_bias (shape: {attn_bias.shape}) is expected to broadcast to shape: {attn_weight.shape}.')
+    #     attn_weight = attn_weight + attn_bias
+    # if key_padding_mask is not None:
+        # if attn_bias is not None:
+        #     warnings.warn('Propogating key_padding_mask to the attention module ' + 'and applying it within the attention module can cause ' + 'unneccessary computation/memory usage. Consider integrating ' + 'into attn_bias once and passing that to each attention ' + 'module instead.')
+        # attn_weight = attn_weight.masked_fill(~key_padding_mask.view((b, 1, 1, s_k)), min_val)
+    # if is_causal:
+    #     s = max(s_q, s_k)
+    #     causal_mask = attn_weight.new_ones(s, s, dtype=torch.float16)
+    #     causal_mask = causal_mask.tril()
+    #     causal_mask = causal_mask.to(torch.bool)
+    #     causal_mask = ~causal_mask
+    #     causal_mask = causal_mask[-s_q:, -s_k:]
+    #     attn_weight = attn_weight.masked_fill(causal_mask.view(1, 1, s_q, s_k), min_val)
+    # attn_weight = torch.softmax(attn_weight, dim=-1)
+    # if dropout_p:
+    #     attn_weight = torch.nn.functional.dropout(attn_weight, p=dropout_p, training=training, inplace=True)
+    # out = attn_weight.matmul(v)
+    print(f"output shape = {out.shape}")
+    out = rearrange(out, 'b h s d -> b s (h d)')
+    return out, None
 
 def check_valid_inputs(*tensors, valid_dtypes=[torch.float16, torch.bfloat16]):
     for tensor in tensors:
@@ -146,6 +207,8 @@ class MultiheadAttention(nn.Module):
             self.attn_fn = scaled_multihead_dot_product_attention
             if torch.cuda.is_available():
                 warnings.warn('Using `attn_impl: torch`. If your model does not use `alibi` or ' + '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' + 'we recommend using `attn_impl: triton`.')
+        elif self.attn_impl == "torch_anyscale":
+            self.attn_fn = anyscaled_multihead_dot_product_attention
         else:
             raise ValueError(f'attn_impl={attn_impl!r} is an invalid setting.')
         self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
@@ -206,6 +269,8 @@ class MultiQueryAttention(nn.Module):
             self.attn_fn = scaled_multihead_dot_product_attention
             if torch.cuda.is_available():
                 warnings.warn('Using `attn_impl: torch`. If your model does not use `alibi` or ' + '`prefix_lm` we recommend using `attn_impl: flash` otherwise ' + 'we recommend using `attn_impl: triton`.')
+        elif self.attn_impl == "torch_anyscale":
+            self.attn_fn = anyscaled_multihead_dot_product_attention
         else:
             raise ValueError(f'attn_impl={attn_impl!r} is an invalid setting.')
         self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
@@ -234,7 +299,7 @@ class MultiQueryAttention(nn.Module):
 def attn_bias_shape(attn_impl, n_heads, seq_len, alibi, prefix_lm, causal, use_sequence_id):
     if attn_impl == 'flash':
         return None
-    elif attn_impl in ['torch', 'triton']:
+    elif attn_impl in ['torch', 'triton', 'torch_anyscale']:
         if alibi:
             if (prefix_lm or not causal) or use_sequence_id:
                 return (1, n_heads, seq_len, seq_len)

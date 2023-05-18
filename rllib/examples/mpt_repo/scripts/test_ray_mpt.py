@@ -15,7 +15,8 @@ class Actor:
     def foo(self):
         print("In foo")
         config = MPTConfig()
-        config.attn_config["attn_impl"] = "triton"
+        config.attn_config["attn_impl"] = "torch_anyscale"
+        # config.attn_config["attn_impl"] = "torch"
         config.attn_config["alibi"] = False
 
         print("Loading model")
@@ -28,14 +29,12 @@ class Actor:
         inputs = {k: v.to("cuda") for k, v in inputs.items()}
         inputs["labels"] = inputs["input_ids"].clone()
 
-
-        output = model.forward(**inputs)
-        output.loss.backward()
+        with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True, enable_mem_efficient=False):
+            output = model.forward(**inputs)
+            output.loss.backward()
 
 
         return output
-
-
 
 
 if __name__ == "__main__":
