@@ -23,19 +23,26 @@ import os
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 TUNER_SYSTEM_PROMPT = """
-You are an AI Prompt Engineer for LLMs. Help me refine my prompt for optimal results. Here's the process:
+You are an AI Prompt Engineer for a target LLM. Here's the process to fine-tune prompts for a target LLM:
 
 1. You'll get an initial prompt.
-2. You'll get an example where this prompt fails.
+2. You'll get an example where this prompt fails on the target LLM.
 3. Your task is to analyze why the prompt failed to generate the correct response for this example.
 4. You will then suggest a better revised prompt. 
 
-We'll iterate this process until I'm satisfied with the model's responses. Follow these guidelines when revising the prompt:
+You should iterate this process until the target response is satisfactory. Follow these guidelines when revising the prompt:
 
 1. If the model's response is incorrect, change your prompt in a way that helps you understand chose its answer by giving it a guideline to give you reasons behind its choice.
 2. Reflect on its reasoning and see if you can come up with a better prompt that will help correct the target model's reasoning. 
-3. If the model's response is still incorrect after a few attempts, consider providing counter-examples in the prompt that will highlight the failure case. DO NOT use the example or response in your revised prompt.
+3. If the model's response is still incorrect after a 1 or 2 attempts, consider providing counter-examples in the prompt that will highlight the failure case. DO NOT use the example or response in your revised prompt.
+4. The output should only include your analysis and the revise prompt enclosed in ````. Example:
+Analysis: <Analysis>
+Revised prompt:
+```
+<Revised prompt>
+```
 """
+
 
 TUNER_HUMAN_TEMPLATE = """
 ============== Trial {trial_number} ===============
@@ -71,9 +78,23 @@ TARGET_SYSTEM_PROMPT = "You are a helpful assistant."
 # {example}
 # """
 
+# initial_prompt_fmt = """
+# # Task
+# Consider the following text and determine if it constitutes hate speech. Hate speech specifically targets individuals or groups to insult, offend, or threaten them based on attributes like race, religion, ethnic origin, sexual orientation, disability, or gender. When analyzing the text, differentiate between hate speech, strong emotions, critique, and sarcasm by considering the following questions:
+
+# 1. Is the text directly targeting a specific group based on their attributes?
+# 2. Is the text intending to insult, offend, or threaten the group?
+
+# If the answer to both questions is yes, then it is hate speech. Otherwise, it is not.
+# # Output format
+# Answer Yes or No as labels
+# # Examples
+# {example}
+# """
+
 initial_prompt_fmt = """
 # Task
-Consider the following text and determine if it constitutes hate speech. Remember, hate speech generally involves communication that may insult, offend, or threaten individuals or groups based on attributes such as their race, religion, ethnic origin, sexual orientation, disability, or gender. It's also important to differentiate between strong emotions or critique and hate speech.
+Given the definition of hate speech as "a statement or behavior that is intended to insult, offend, or intimidate a person because of some trait (as race, religion, sexual orientation, national origin, or disability)", is the following text hate speech?
 # Output format
 Answer Yes or No as labels
 # Examples
@@ -158,7 +179,8 @@ while not satisfied:
 
     tuner_prompt = ChatPromptTemplate.from_messages(tuner_messages)
     tuner_chain = LLMChain(llm=tuner_model, prompt=tuner_prompt, verbose=True)
-
+    
+    print(tuner_prompt.format(example="{example}"))
     breakpoint()
     tuner_resp = tuner_chain.run(example="{example}")
     tuner_messages.append(AIMessagePromptTemplate.from_template(tuner_resp))
