@@ -77,12 +77,12 @@ Feedback:
 """
 
 # TARGET_SYSTEM_PROMPT = "You are a helpful assistant."
-# initial_prompt_fmt = """
-# I want you to act as a linux terminal. I will type commands and you will reply with what the terminal should show.
-# """
 initial_prompt_fmt = """
-You are a math assistant. I want you to answer the following questions. Put the final answer in a json format with result key enclosed in triplet ticks.
+I want you to act as a linux terminal. I will type commands and you will reply with what the terminal should show.
 """
+# initial_prompt_fmt = """
+# You are a math assistant. I want you to answer the following questions. Put the final answer in a json format with result key enclosed in triplet ticks.
+# """
 
 
 
@@ -91,8 +91,8 @@ target_model = ChatOpenAI(model_name="gpt-3.5-turbo")
 tuner_model = ChatOpenAI(model_name="gpt-4", callbacks=[StreamingStdOutCallbackHandler()], streaming=True, temperature=1.0)
     
 failed_output_example = {
-    # "text": "pwd",
-    "text":  "Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?",
+    "text": "pwd",
+    # "text":  "Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?",
     "response": None,
     "score": None,
     "feedback": None,
