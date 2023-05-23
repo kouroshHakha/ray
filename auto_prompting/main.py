@@ -22,44 +22,52 @@ import os
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
+# TUNER_SYSTEM_PROMPT = """
+# You are an AI Prompt Engineer for a target LLM. Here's the process to fine-tune prompts for a target LLM:
+
+# 1. You'll get an initial prompt.
+# 2. You'll get examples where this prompt failed in some way.
+# 3. Your task is to analyze why the prompt failed to generate the correct response for this example.
+# 4. You will then suggest a better revised prompt. 
+
+# You should iterate this process until the target responses are satisfactory. Follow these steps when revising the prompt:
+
+# 1. If the model's response is incorrect, understand the reason behind choosing its answer. For doing so you can update the prompt to force the model to generate the reasoning behind its answer.
+# 2. Reflect on its reasoning and see if you can come up with a better prompt that will help correct the target model's answers. 
+# 3. If the model's responses are still incorrect after a 1 or 2 attempts, consider providing counter-examples in the prompt that will highlight the failure cases. DO NOT use the example or response in your revised prompt.
+# 4. The output should only include your analysis and the revise prompt enclosed in ````. Example:
+# Analysis: <Analysis>
+# Revised prompt:
+# ```
+# <Revised prompt>
+# ```
+# """
+
+
 TUNER_SYSTEM_PROMPT = """
-You are an AI Prompt Engineer for a target LLM. Here's the process to fine-tune prompts for a target LLM:
+I want you to act as a LLM prompt engineer. I will give you an initial prompt. This prompt will be used on a target LLM to have it do some task. I will also give you some of its failed output response. Your job is to iteratively come up with a better instruction that will nudge the model to behave as expected. 
 
-1. You'll get an initial prompt.
-2. You'll get examples where this prompt failed in some way.
-3. Your task is to analyze why the prompt failed to generate the correct response for this example.
-4. You will then suggest a better revised prompt. 
+If feedback is not provided analyze what is wrong first, and generate some hypothesises. Then, add explicit prohibitive conditions to the instruction that will counter the model from repeating the same mistake based on your hypothesises. 
 
-You should iterate this process until the target responses are satisfactory. Follow these steps when revising the prompt:
+Return the new prompt enclosed in tripple brackets (```). Example:
 
-1. If the model's response is incorrect, understand the reason behind choosing its answer. For doing so you can update the prompt to force the model to generate the reasoning behind its answer.
-2. Reflect on its reasoning and see if you can come up with a better prompt that will help correct the target model's answers. 
-3. If the model's responses are still incorrect after a 1 or 2 attempts, consider providing counter-examples in the prompt that will highlight the failure cases. DO NOT use the example or response in your revised prompt.
-4. The output should only include your analysis and the revise prompt enclosed in ````. Example:
-Analysis: <Analysis>
 Revised prompt:
 ```
 <Revised prompt>
-```
 """
-
 
 TUNER_HUMAN_TEMPLATE = """
 ============== Trial {trial_number} ===============
 
-Prompt:
+Initial Prompt:
 ```
 {current_prompt_fmt}
 ```
 
-Example:
+Failed Examples:
 ```
-{example}
-```
-
-Response:
-```
-{response}
+Input: {example}
+Output: {response}
 ```
 
 Feedback:
@@ -68,45 +76,23 @@ Feedback:
 ```
 """
 
-TARGET_SYSTEM_PROMPT = "You are a helpful assistant."
-# initial_prompt_fmt = """
-# # Task
-# Is the following text hate speech?
-# # Output format
-# Answer Yes or No as labels
-# # Examples
-# {example}
-# """
-
-# initial_prompt_fmt = """
-# # Task
-# Consider the following text and determine if it constitutes hate speech. Hate speech specifically targets individuals or groups to insult, offend, or threaten them based on attributes like race, religion, ethnic origin, sexual orientation, disability, or gender. When analyzing the text, differentiate between hate speech, strong emotions, critique, and sarcasm by considering the following questions:
-
-# 1. Is the text directly targeting a specific group based on their attributes?
-# 2. Is the text intending to insult, offend, or threaten the group?
-
-# If the answer to both questions is yes, then it is hate speech. Otherwise, it is not.
-# # Output format
-# Answer Yes or No as labels
-# # Examples
-# {example}
-# """
-
+# TARGET_SYSTEM_PROMPT = "You are a helpful assistant."
 initial_prompt_fmt = """
-# Task
-Given the definition of hate speech as "a statement or behavior that is intended to insult, offend, or intimidate a person because of some trait (as race, religion, sexual orientation, national origin, or disability)", is the following text hate speech?
-# Output format
-Answer Yes or No as labels
-# Examples
-{example}
+I want you to act as a linux terminal. I will type commands and you will reply with what the terminal should show.
 """
+# initial_prompt_fmt = """
+# You are a math assistant. Enclose only the final numerical answer in <START><END>. In the end I want you to display each step as a numbered line where in each line you show the math with some equation with some explanation in front of it in paranthesis.  
+# """
+
+
 
 target_model = ChatOpenAI(model_name="gpt-3.5-turbo")
 # tuner_model = ChatOpenAI(model_name="gpt-4", callbacks=[StreamingStdOutCallbackHandler()], streaming=True)
-tuner_model = ChatOpenAI(model_name="gpt-4", callbacks=[StreamingStdOutCallbackHandler()], streaming=True, temperature=0.7)
+tuner_model = ChatOpenAI(model_name="gpt-4", callbacks=[StreamingStdOutCallbackHandler()], streaming=True, temperature=1.0)
     
 failed_output_example = {
-    "text":  "Do you know why he is smiling because there is no `excretion law` in New Zealand! The max sentence he will receive from a judge is no more than 27 years in prison! Is this justice? Or because Muslims lives don't matter!??? :(((",
+    "text": "pwd",
+    # "text":  "Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?",
     "response": None,
     "score": None,
     "feedback": None,
@@ -117,10 +103,7 @@ tuner_messages = [
     SystemMessagePromptTemplate.from_template(TUNER_SYSTEM_PROMPT),
 ]
 
-target_messages = [
-    SystemMessagePromptTemplate.from_template(TARGET_SYSTEM_PROMPT),
-    HumanMessagePromptTemplate.from_template(initial_prompt_fmt)
-]
+
 
 satisfied = False
 current_prompt_fmt = initial_prompt_fmt
@@ -128,16 +111,24 @@ turn = 0
 
 while not satisfied:
     # Create the prompt for target model and get its response
+    # target_messages = [
+    #     HumanMessagePromptTemplate.from_template(current_prompt_fmt)
+    # ]
+    target_messages = [
+        SystemMessagePromptTemplate.from_template(current_prompt_fmt),
+        HumanMessagePromptTemplate.from_template(failed_output_example["text"])
+    ]
     target_model_prompt = ChatPromptTemplate.from_messages(target_messages)
     target_chain = LLMChain(llm=target_model, prompt=target_model_prompt)
 
-    cur_resp = target_chain.run(example=failed_output_example["text"])
+    cur_resp = target_chain.run(example=failed_output_example["text"], verbose=True)
     print(f"============== Trial {turn + 1} ===============")
     print("Current Prompt format:")
     print(current_prompt_fmt)
     print("Failed Example:")
+    print("Input:")
     print(failed_output_example["text"])
-    print("Response of the target model:")
+    print("Output:")
     print(cur_resp)
 
     cur_satisfaction = ""
@@ -169,10 +160,9 @@ while not satisfied:
     # Create a decision prompt for gpt-4
     tuner_human_prompt = TUNER_HUMAN_TEMPLATE.format(
         trial_number=turn + 1,
-        current_prompt_fmt=current_prompt_fmt.format(example="{example}"),
+        current_prompt_fmt=current_prompt_fmt,
         example=failed_output_example["text"],
         response=cur_resp,
-        # score=score,
         feedback=feedback,
     )
     tuner_messages.append(HumanMessagePromptTemplate.from_template(tuner_human_prompt))
@@ -180,8 +170,8 @@ while not satisfied:
     tuner_prompt = ChatPromptTemplate.from_messages(tuner_messages)
     tuner_chain = LLMChain(llm=tuner_model, prompt=tuner_prompt, verbose=True)
     
-    print(tuner_prompt.format(example="{example}"))
-    breakpoint()
+    # print(tuner_prompt.format(example="{example}"))
+    # breakpoint()
     tuner_resp = tuner_chain.run(example="{example}")
     tuner_messages.append(AIMessagePromptTemplate.from_template(tuner_resp))
 
@@ -196,6 +186,8 @@ while not satisfied:
         current_prompt_fmt = matches[0]
     else:
         print("Could not find the prompt in the response. Please try again.\n")
+        print("Tuner Response: ")
+        print(tuner_resp)
         breakpoint()
 
     breakpoint()
