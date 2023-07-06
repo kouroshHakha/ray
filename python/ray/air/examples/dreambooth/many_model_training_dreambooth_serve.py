@@ -1,8 +1,5 @@
 from typing import List
 
-from accelerate_dreambooth import train_fn
-import ray
-from ray.util.multiprocessing import Pool
 import time
 import requests
 
