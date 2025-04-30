@@ -3,8 +3,8 @@ applications:
 - args:
     llm_configs:
         - model_loading_config:
-            model_id: meta-llama/Llama-3.1-8B-Instruct
-            model_source: meta-llama/Llama-3.1-8B-Instruct
+            model_id: unsloth/Meta-Llama-3.1-8B-Instruct
+            model_source: unsloth/Meta-Llama-3.1-8B-Instruct
           # accelerator_type: H100
           router_replicas: 16
           batch_timeout_ms: 2
