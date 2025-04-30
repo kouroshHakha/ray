@@ -1,0 +1,34 @@
+
+applications:
+- args:
+    llm_configs:
+        - model_loading_config:
+            model_id: meta-llama/Llama-3.1-8B-Instruct
+            model_source: meta-llama/Llama-3.1-8B-Instruct
+          # accelerator_type: H100
+          router_replicas: 16
+          batch_timeout_ms: 2
+          deployment_config:
+            max_ongoing_requests: 999
+            autoscaling_config:
+                initial_replicas: 1
+                min_replicas: 1
+                max_replicas: 1
+          engine_kwargs:
+            swap_space: 16
+            tensor_parallel_size: 1
+            num_scheduler_steps: 4
+            dtype: "float16"
+            gpu_memory_utilization: 0.8
+            enable_chunked_prefill: false
+            enable_prefix_caching: false
+            max_model_len: 512
+            max_num_batched_tokens: 8192
+            quantization: null
+            kv_cache_dtype: auto
+            max_num_seqs: 512
+            max_seq_len_to_capture: 4096
+            disable_log_requests: true
+  import_path: ray.serve.llm:build_openai_app
+  name: llm_app
+  route_prefix: "/"
