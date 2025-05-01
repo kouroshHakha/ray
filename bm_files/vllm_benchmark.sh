@@ -1,0 +1,1 @@
+python benchmark_serving.py --host localhost --backend openai --port 8000 --model unsloth/Meta-Llama-3.1-8B-Instruct  --dataset-name random --random-input-len 128 --random-output-len 128 --percentile-metrics ttft,tpot,itl,e2el --save-result --num-prompts 2000 --max-concurrency 256 --ignore-eos 
