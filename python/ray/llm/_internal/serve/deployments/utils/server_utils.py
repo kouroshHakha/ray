@@ -111,9 +111,10 @@ def get_response_for_error(
         internal_message += f" (Request ID: {request_id})"
 
     error_response = ErrorResponse(
+        error=dict(
         message=f"Message: {message}, Internal exception: {internal_message}, original exception: {str(e)}",
         code=status_code,
-        type=exc_type,
+        type=exc_type,)
     )
     return error_response
 
