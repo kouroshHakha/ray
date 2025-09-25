@@ -357,7 +357,7 @@ class LLMServer(_LLMServerBase):
         return await self._run_request(
             request,
             engine_method="chat",
-            batch_output_stream=True,
+            batch_output_stream=False,
         )
 
     async def completions(
@@ -376,7 +376,7 @@ class LLMServer(_LLMServerBase):
         return await self._run_request(
             request,
             engine_method="completions",
-            batch_output_stream=True,
+            batch_output_stream=False,
         )
 
     async def embeddings(
