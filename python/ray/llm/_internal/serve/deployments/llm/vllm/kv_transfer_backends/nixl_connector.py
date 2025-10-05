@@ -1,5 +1,7 @@
 import os
 
+import random
+import string
 from ray.llm._internal.serve.deployments.llm.vllm.kv_transfer_backends.base import (
     BaseConnectorBackend,
 )
@@ -27,6 +29,17 @@ class NixlConnectorBackend(BaseConnectorBackend):
 
         if not vllm_envs.is_set("VLLM_NIXL_SIDE_CHANNEL_HOST"):
             os.environ["VLLM_NIXL_SIDE_CHANNEL_HOST"] = vllm_utils.get_ip()
+
+    def _get_unique_suffix(self, len: int = 6) -> str:
+        """Generates unique alphanumeric suffix.
+
+        Args:
+            len: Length of the suffix to generate.
+        Returns:
+            A unique alphanumeric suffix string of specified length.
+        """
+        return "".join(random.choices(string.ascii_letters + string.digits, k=len))
+
 
     def setup(self) -> None:
         """Initialize the NIXL connector backend.

@@ -1,3 +1,6 @@
+import random
+import string
+
 from ray.llm._internal.serve.deployments.llm.vllm.kv_transfer_backends.base import (
     BaseConnectorBackend,
 )
@@ -20,6 +23,18 @@ class LMCacheConnectorV1Backend(BaseConnectorBackend):
     KV_CONNECTOR_EXTRA_CONFIG_FIELD_NAME = "kv_connector_extra_config"
     LMCACHE_RPC_PORT_FIELD_NAME = "lmcache_rpc_port"
     DEFAULT_LMCACHE_RPC_PORT_NAME = "lmcache_rpc_port"
+
+
+    def _get_unique_suffix(self, len: int = 6) -> str:
+        """Generates unique alphanumeric suffix.
+
+        Args:
+            len: Length of the suffix to generate.
+        Returns:
+            A unique alphanumeric suffix string of specified length.
+        """
+        return "".join(random.choices(string.ascii_letters + string.digits, k=len))
+
 
     def setup(self) -> None:
         """Initialize the LMCache connector backend.

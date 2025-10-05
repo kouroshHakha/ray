@@ -2,11 +2,14 @@
 """
 import logging
 import uuid
-from typing import Any, AsyncGenerator, Dict, Union
+from typing import Any, AsyncGenerator, Dict, Union, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from ray import serve
+from ray.serve.deployment import Application
+from ray.serve.handle import DeploymentHandle
+
 from ray.llm._internal.common.base_pydantic import BaseModelExtended
 from ray.llm._internal.serve.configs.openai_api_models import (
     ChatCompletionRequest,
@@ -17,6 +20,8 @@ from ray.llm._internal.serve.configs.openai_api_models import (
     EmbeddingResponse,
     ErrorResponse,
 )
+
+from ray.llm._internal.serve.deployments.protocol import LLMServerProtocol
 from ray.llm._internal.serve.deployments.llm.llm_server import LLMServer
 from ray.llm._internal.serve.deployments.routers.builder_ingress import (
     parse_args as parse_llm_configs,
@@ -25,12 +30,9 @@ from ray.llm._internal.serve.deployments.routers.router import (
     OpenAiIngress,
     make_fastapi_ingress,
 )
-from ray.serve.deployment import Application
-from ray.serve.handle import DeploymentHandle
-from ray.serve.llm import (
-    LLMConfig,
-    build_llm_deployment,
-)
+from ray.llm._internal.serve.deployments.llm.builder_llm_server import build_llm_deployment
+from ray.llm._internal.serve.configs.server_models import LLMConfig
+
 
 logger = logging.getLogger(__name__)
 RequestType = Union[ChatCompletionRequest, CompletionRequest]
@@ -66,9 +68,15 @@ class PDServingArgs(BaseModelExtended):
             proxy_deployment_config=self.proxy_deployment_config,
         )
 
+    @field_validator("prefill_config", "decode_config")
+    @classmethod
+    def validate_kv_transfer_config(cls, value: LLMConfig):
+        if "kv_transfer_config" not in value.engine_kwargs:
+            raise ValueError("kv_transfer_config is not set when using P/D disaggregation")
+        return value
 
-class PDProxyServer(LLMServer):
-    _default_engine_cls = None
+class PDProxyServer(LLMServerProtocol):
+    # _default_engine_cls = None
     """Proxy between P/D LLM servers.
 
     For chat and completions, proxy sends the request to the prefill server and
@@ -79,7 +87,7 @@ class PDProxyServer(LLMServer):
         decode_server: The decode server deployment handle.
     """
 
-    async def __init__(
+    def __init__(
         self,
         prefill_server: DeploymentHandle,
         decode_server: DeploymentHandle,
@@ -91,11 +99,34 @@ class PDProxyServer(LLMServer):
         # query model_id through API, instead of passing it in as an argument.
         # We can obtain llm_config from prefill_server for obtaining model_id
         # assuming there is no mismatch between prefill and decode server.
-        llm_config = await prefill_server.llm_config.remote()
-        await super().__init__(llm_config)
+        # llm_config = await prefill_server.llm_config.remote()
+        # await super().__init__(llm_config)
         self.prefill_server = prefill_server.options(stream=True)
         self.decode_server = decode_server.options(stream=True)
 
+    async def start(self):
+        pass
+    
+    async def check_health(self):
+        pass
+    
+    async def reset_prefix_cache(self):
+        pass
+    
+    async def start_profile(self):
+        pass
+    
+    async def stop_profile(self):
+        pass
+    
+    async def llm_config(self) -> Optional["LLMConfig"]:
+        handle = self.prefill_server.options(stream=False)
+        return await handle.llm_config.remote()
+    
+    @classmethod
+    def get_deployment_options(cls):
+        return {}
+    
     async def embeddings(
         self, request: EmbeddingRequest
     ) -> AsyncGenerator[EmbeddingResponse, None]:
@@ -179,16 +210,6 @@ def build_pd_openai_app(pd_serving_args: dict) -> Application:
 
     model_id = pd_config.decode_config.model_id
     assert model_id == pd_config.prefill_config.model_id, "P/D model id mismatch"
-
-    for config in [pd_config.prefill_config, pd_config.decode_config]:
-        if "kv_transfer_config" not in config.engine_kwargs:
-            config.update_engine_kwargs(
-                kv_transfer_config=dict(
-                    kv_connector="NixlConnector",
-                    kv_role="kv_both",
-                    engine_id=str(uuid.uuid4()),
-                )
-            )
 
     prefill_deployment = build_llm_deployment(
         pd_config.prefill_config, name_prefix="Prefill:"

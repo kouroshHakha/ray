@@ -1,6 +1,4 @@
 import abc
-import random
-import string
 from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
@@ -25,15 +23,6 @@ class BaseConnectorBackend(abc.ABC):
         ), "In Connector backend, kv_transfer_config is not set"
         return kv_transfer_config
 
-    def _get_unique_suffix(self, len: int = 6) -> str:
-        """Generates unique alphanumeric suffix.
-
-        Args:
-            len: Length of the suffix to generate.
-        Returns:
-            A unique alphanumeric suffix string of specified length.
-        """
-        return "".join(random.choices(string.ascii_letters + string.digits, k=len))
 
     @abc.abstractmethod
     def setup(self) -> None:
