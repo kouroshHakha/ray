@@ -24,7 +24,6 @@ class LMCacheConnectorV1Backend(BaseConnectorBackend):
     LMCACHE_RPC_PORT_FIELD_NAME = "lmcache_rpc_port"
     DEFAULT_LMCACHE_RPC_PORT_NAME = "lmcache_rpc_port"
 
-
     def _get_unique_suffix(self, len: int = 6) -> str:
         """Generates unique alphanumeric suffix.
 
@@ -34,7 +33,6 @@ class LMCacheConnectorV1Backend(BaseConnectorBackend):
             A unique alphanumeric suffix string of specified length.
         """
         return "".join(random.choices(string.ascii_letters + string.digits, k=len))
-
 
     def setup(self) -> None:
         """Initialize the LMCache connector backend.

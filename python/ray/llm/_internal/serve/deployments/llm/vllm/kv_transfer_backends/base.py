@@ -23,7 +23,6 @@ class BaseConnectorBackend(abc.ABC):
         ), "In Connector backend, kv_transfer_config is not set"
         return kv_transfer_config
 
-
     @abc.abstractmethod
     def setup(self) -> None:
         """Setup the connector backend.

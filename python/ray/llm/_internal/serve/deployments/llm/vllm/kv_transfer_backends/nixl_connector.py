@@ -40,7 +40,6 @@ class NixlConnectorBackend(BaseConnectorBackend):
         """
         return "".join(random.choices(string.ascii_letters + string.digits, k=len))
 
-
     def setup(self) -> None:
         """Initialize the NIXL connector backend.
 

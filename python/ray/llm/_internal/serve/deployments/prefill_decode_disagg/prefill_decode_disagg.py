@@ -30,7 +30,9 @@ from ray.llm._internal.serve.deployments.routers.router import (
     OpenAiIngress,
     make_fastapi_ingress,
 )
-from ray.llm._internal.serve.deployments.llm.builder_llm_server import build_llm_deployment
+from ray.llm._internal.serve.deployments.llm.builder_llm_server import (
+    build_llm_deployment,
+)
 from ray.llm._internal.serve.configs.server_models import LLMConfig
 
 
@@ -72,8 +74,11 @@ class PDServingArgs(BaseModelExtended):
     @classmethod
     def validate_kv_transfer_config(cls, value: LLMConfig):
         if "kv_transfer_config" not in value.engine_kwargs:
-            raise ValueError("kv_transfer_config is not set when using P/D disaggregation")
+            raise ValueError(
+                "kv_transfer_config is not set when using P/D disaggregation"
+            )
         return value
+
 
 class PDProxyServer(LLMServerProtocol):
     # _default_engine_cls = None
@@ -106,27 +111,27 @@ class PDProxyServer(LLMServerProtocol):
 
     async def start(self):
         pass
-    
+
     async def check_health(self):
         pass
-    
+
     async def reset_prefix_cache(self):
         pass
-    
+
     async def start_profile(self):
         pass
-    
+
     async def stop_profile(self):
         pass
-    
+
     async def llm_config(self) -> Optional["LLMConfig"]:
         handle = self.prefill_server.options(stream=False)
         return await handle.llm_config.remote()
-    
+
     @classmethod
     def get_deployment_options(cls):
         return {}
-    
+
     async def embeddings(
         self, request: EmbeddingRequest
     ) -> AsyncGenerator[EmbeddingResponse, None]:
