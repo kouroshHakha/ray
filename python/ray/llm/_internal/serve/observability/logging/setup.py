@@ -1,7 +1,8 @@
 import logging
 
-from ray._common.filters import CoreContextFilter
-from ray._common.formatters import JSONFormatter
+# TODO: NIGHTLY FIX
+# from ray._common.filters import CoreContextFilter
+# from ray._common.formatters import JSONFormatter
 from ray.serve._private.logging_utils import ServeContextFilter
 
 
@@ -12,9 +13,11 @@ def _configure_stdlib_logging():
     """
 
     handler = logging.StreamHandler()
-    handler.addFilter(CoreContextFilter())
+    # TODO: NIGHTLY FIX
+    # handler.addFilter(CoreContextFilter())
+    # TODO: NIGHTLY FIX
+    # handler.setFormatter(JSONFormatter())
     handler.addFilter(ServeContextFilter())
-    handler.setFormatter(JSONFormatter())
 
     root_logger = logging.getLogger()
     # NOTE: It's crucial we reset all the handlers of the root logger,

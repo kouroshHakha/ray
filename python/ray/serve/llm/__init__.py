@@ -1,6 +1,9 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 
-from ray._common.deprecation import Deprecated
+# TODO: NIGHTLY FIX
+# from ray._common.deprecation import Deprecated
+from ray.rllib.utils.deprecation import Deprecated
+
 from ray.llm._internal.serve.configs.server_models import (
     CloudMirrorConfig as _CloudMirrorConfig,
     LLMConfig as _LLMConfig,

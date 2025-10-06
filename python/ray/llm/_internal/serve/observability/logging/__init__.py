@@ -1,7 +1,8 @@
 import logging
 from typing import Optional
 
-from ray._common.filters import CoreContextFilter
+# TODO: NIGHTLY FIX
+# from ray._common.filters import CoreContextFilter
 from ray.serve._private.logging_utils import ServeContextFilter
 
 
@@ -21,7 +22,8 @@ def _setup_logger(logger_name: str):
 
     # Set up stream handler, which logs to console as plaintext.
     stream_handler = logging.StreamHandler()
-    stream_handler.addFilter(CoreContextFilter())
+    # TODO: NIGHTLY FIX
+    # stream_handler.addFilter(CoreContextFilter())
     stream_handler.addFilter(ServeContextFilter())
     logger.addHandler(stream_handler)
     logger.setLevel(logging.INFO)
