@@ -10,6 +10,9 @@ from ray import serve
 from ray.serve.deployment import Application
 from ray.serve.handle import DeploymentHandle
 
+from ray.llm._internal.serve.deployments.utils.server_utils import (
+    get_serve_request_id,
+)
 from ray.llm._internal.common.base_pydantic import BaseModelExtended
 from ray.llm._internal.serve.configs.openai_api_models import (
     ChatCompletionRequest,
@@ -22,7 +25,6 @@ from ray.llm._internal.serve.configs.openai_api_models import (
 )
 
 from ray.llm._internal.serve.deployments.protocol import LLMServerProtocol
-from ray.llm._internal.serve.deployments.llm.llm_server import LLMServer
 from ray.llm._internal.serve.deployments.routers.builder_ingress import (
     parse_args as parse_llm_configs,
 )
@@ -155,6 +157,17 @@ class PDProxyServer(LLMServerProtocol):
 
         return prefill_request
 
+    async def _maybe_add_request_id_to_request(
+        self,
+        request: Union[
+            "ChatCompletionRequest", "CompletionRequest", "EmbeddingRequest"
+        ],
+    ):
+        """Add the request id to the request."""
+        request_id = get_serve_request_id()
+        if request_id:
+            request.request_id = request_id
+            
     def _prepare_decode_request(
         self,
         request: RequestType,
