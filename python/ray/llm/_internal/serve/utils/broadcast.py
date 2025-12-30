@@ -85,21 +85,15 @@ def broadcast(
     if request_router is None:
         raise RuntimeError("Request router not initialized. No replicas accessible.")
 
-    replica_set = request_router._replica_id_set
+    running_replicas = request_router._replicas.values()
 
     # Execute calls
     futures = []
 
-    # We copy the set to avoid modification during iteration if that happens
-    replicas = list(replica_set)
+    for replica in running_replicas:
+        replica_info = replica._replica_info
+        actor_handle = replica_info.get_actor_handle()
 
-    for replica in replicas:
-        actor_name = replica.to_full_id_str()
-        try:
-            actor_handle = ray.get_actor(actor_name, namespace="serve")
-        except ValueError:
-            # Actor might be dead or not found
-            continue
 
         # Prepare args
         call_args = args
@@ -109,6 +103,7 @@ def broadcast(
             call_args = args(replica)
         if callable(kwargs):
             call_kwargs = kwargs(replica)
+            logger.info(f"Resolved kwargs for replica {replica_info.replica_id}: {call_kwargs}")
 
         if not isinstance(call_args, (list, tuple)):
             raise ValueError(f"args must be a list or tuple, got {type(call_args)}")
