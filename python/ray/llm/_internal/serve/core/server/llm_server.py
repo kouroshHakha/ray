@@ -47,11 +47,15 @@ if TYPE_CHECKING:
         ChatCompletionResponse,
         CompletionRequest,
         CompletionResponse,
+        DetokenizeRequest,
+        DetokenizeResponse,
         EmbeddingRequest,
         EmbeddingResponse,
         ErrorResponse,
         ScoreRequest,
         ScoreResponse,
+        TokenizeCompletionRequest,
+        TokenizeResponse,
         TranscriptionRequest,
         TranscriptionResponse,
     )
@@ -450,6 +454,54 @@ class LLMServer(LLMServerProtocol):
             batch_output_stream=False,
             raw_request_info=raw_request_info,
         )
+
+    async def tokenize(
+        self,
+        request: "TokenizeCompletionRequest",
+        raw_request_info: Optional[RawRequestInfo] = None,
+    ) -> AsyncGenerator[Union["TokenizeResponse", "ErrorResponse"], None]:
+        """Tokenize text into token IDs.
+
+        Args:
+            request: The tokenization request containing the prompt to tokenize.
+            raw_request_info: Optional RawRequestInfo containing data from the original
+                HTTP request.
+
+        Yields:
+            TokenizeResponse containing the token IDs and count, or ErrorResponse on failure.
+        """
+        if self.engine is None:
+            raise ValueError("Engine is not initialized")
+        try:
+            async for response in self.engine.tokenize(request, raw_request_info):
+                yield response
+        except Exception as e:
+            logger.error("Engine tokenize failed in LLMServer.tokenize: %s", e)
+            raise e
+
+    async def detokenize(
+        self,
+        request: "DetokenizeRequest",
+        raw_request_info: Optional[RawRequestInfo] = None,
+    ) -> AsyncGenerator[Union["DetokenizeResponse", "ErrorResponse"], None]:
+        """Detokenize token IDs back into text.
+
+        Args:
+            request: The detokenization request containing the token IDs.
+            raw_request_info: Optional RawRequestInfo containing data from the original
+                HTTP request.
+
+        Yields:
+            DetokenizeResponse containing the decoded text, or ErrorResponse on failure.
+        """
+        if self.engine is None:
+            raise ValueError("Engine is not initialized")
+        try:
+            async for response in self.engine.detokenize(request, raw_request_info):
+                yield response
+        except Exception as e:
+            logger.error("Engine detokenize failed in LLMServer.detokenize: %s", e)
+            raise e
 
     async def check_health(self) -> None:
         """

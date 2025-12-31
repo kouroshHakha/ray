@@ -25,12 +25,16 @@ from ray.llm._internal.serve.core.ingress.mixins.sleepable import (
     SleepRequest,
     WakeupRequest,
 )
+from ray.llm._internal.serve.core.ingress.mixins.tokenization import (
+    TokenizationIngressMixin,
+)
 
 __all__ = [
     "CacheManagerIngressMixin",
     "CollectiveRpcIngressMixin",
     "PausableIngressMixin",
     "SleepableIngressMixin",
+    "TokenizationIngressMixin",
     "CollectiveRpcRequest",
     "CollectiveRpcResponse",
     "ReplicaResult",

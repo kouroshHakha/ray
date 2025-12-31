@@ -14,6 +14,8 @@ Endpoints:
     GET /is_paused: Check if engine is paused
     POST /reset_prefix_cache: Reset the KV prefix cache
     POST /collective_rpc: Execute collective RPC on all workers
+    POST /tokenize: Tokenize text into token IDs
+    POST /detokenize: Detokenize token IDs back into text
 """
 
 import pprint
@@ -34,6 +36,7 @@ from ray.llm._internal.serve.core.ingress.mixins import (
     CollectiveRpcIngressMixin,
     PausableIngressMixin,
     SleepableIngressMixin,
+    TokenizationIngressMixin,
 )
 from ray.llm._internal.serve.core.server.builder import build_llm_deployment
 from ray.llm._internal.serve.observability.logging import get_logger
@@ -48,6 +51,7 @@ DEV_ENDPOINTS = {
     **CollectiveRpcIngressMixin.ENDPOINTS,
     **PausableIngressMixin.ENDPOINTS,
     **SleepableIngressMixin.ENDPOINTS,
+    **TokenizationIngressMixin.ENDPOINTS,
     **DEFAULT_ENDPOINTS,
 }
 
@@ -58,6 +62,7 @@ class DevIngress(
     PausableIngressMixin,
     CacheManagerIngressMixin,
     CollectiveRpcIngressMixin,
+    TokenizationIngressMixin,
 ):
     """OpenAI-compatible ingress with additional control plane endpoints.
 
@@ -67,12 +72,14 @@ class DevIngress(
     - Memory management: Free GPU memory between inference workloads
     - Benchmarking: Reset prefix cache between benchmark rounds
     - RLHF: Execute collective RPC on all workers for weight updates
+    - Tokenization: Tokenize text into token IDs and back
 
     Control plane endpoints provided by mixins:
     - SleepableIngressMixin: /sleep, /wakeup, /is_sleeping
     - PausableIngressMixin: /pause, /resume, /is_paused
     - CacheManagerIngressMixin: /reset_prefix_cache
     - CollectiveRpcIngressMixin: /collective_rpc
+    - TokenizationIngressMixin: /tokenize, /detokenize
 
     WARNING: These endpoints are intended for development and trusted
     environments. Consider access control in production deployments.
@@ -90,6 +97,7 @@ def build_dev_openai_app(builder_config: Dict) -> Application:
     - /pause, /resume, /is_paused (pause mode - keeps weights in GPU)
     - /reset_prefix_cache (cache management)
     - /collective_rpc (RLHF - execute RPC on all workers)
+    - /tokenize, /detokenize (tokenization - convert text to/from token IDs)
 
     Args:
         builder_config: Configuration conforming to LLMServingArgs.
