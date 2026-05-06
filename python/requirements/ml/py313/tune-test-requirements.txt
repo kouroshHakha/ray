@@ -4,7 +4,7 @@ boto3==1.29.7
 jupyterlab
 matplotlib!=3.4.3
 
-pytest-remotedata==0.3.2
+pytest-remotedata==0.4.1
 lightning>2
 fairscale==0.4.6
 shortuuid==1.0.1
