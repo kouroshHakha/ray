@@ -343,23 +343,27 @@ class RunningReplica:
             raise RuntimeError("Slot reservation not supported for Java.")
 
         slot_token = str(uuid.uuid4())
-        obj_ref = self._actor_handle.reserve_slot.remote(request_metadata, slot_token)
-        try:
-            accepted, num_ongoing_requests = await obj_ref
-        except asyncio.CancelledError:
-            ray.cancel(obj_ref)
-            self._actor_handle.release_slot.remote(slot_token)
-            raise
-        except Exception:
-            # The actor may have reserved the slot before the reply was lost
-            # (e.g. ActorUnavailableError). `release_slot` is idempotent for unknown
-            # tokens, so this is safe even when the reservation never actually happened.
-            self._actor_handle.release_slot.remote(slot_token)
-            raise
+        # obj_ref = self._actor_handle.reserve_slot.remote(request_metadata, slot_token)
+        # try:
+        #     accepted, num_ongoing_requests = await obj_ref
+        # except asyncio.CancelledError:
+        #     ray.cancel(obj_ref)
+        #     self._actor_handle.release_slot.remote(slot_token)
+        #     raise
+        # except Exception:
+        #     # The actor may have reserved the slot before the reply was lost
+        #     # (e.g. ActorUnavailableError). `release_slot` is idempotent for unknown
+        #     # tokens, so this is safe even when the reservation never actually happened.
+        #     self._actor_handle.release_slot.remote(slot_token)
+        #     raise
 
+        # return slot_token, ReplicaQueueLengthInfo(
+        #     accepted=accepted,
+        #     num_ongoing_requests=num_ongoing_requests,
+        # )
         return slot_token, ReplicaQueueLengthInfo(
-            accepted=accepted,
-            num_ongoing_requests=num_ongoing_requests,
+            accepted=True,
+            num_ongoing_requests=0,
         )
 
     async def release_slot(self, slot_token: str) -> int:
@@ -373,10 +377,11 @@ class RunningReplica:
         if self._replica_info.is_cross_language:
             raise RuntimeError("Slot reservation not supported for Java.")
 
-        _, num_ongoing_requests = await self._actor_handle.release_slot.remote(
-            slot_token
-        )
-        return num_ongoing_requests
+        # _, num_ongoing_requests = await self._actor_handle.release_slot.remote(
+        #     slot_token
+        # )
+        # return num_ongoing_requests
+        return 0
 
 
 @dataclass
