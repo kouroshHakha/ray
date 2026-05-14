@@ -37,6 +37,11 @@ def _build_direct_streaming_llm_deployment(llm_config: LLMConfig) -> Application
     return build_llm_deployment(
         llm_config,
         deployment_cls=serve.ingress()(server_cls),
+        # override_serve_options={
+        #     "request_router_config": RequestRouterConfig(
+        #         request_router_class=RoundRobinRouter,
+        #     ),
+        # },
     )
 
 
