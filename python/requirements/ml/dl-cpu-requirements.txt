@@ -16,7 +16,7 @@ tf-keras==2.20.0
 --find-links https://data.pyg.org/whl/torch-2.9.0+cpu.html  # for CPU versions of torch-scatter, torch-sparse, torch-cluster, torch-spline-conv
 
 torch==2.9.0
-torchmetrics==0.10.3
+torchmetrics==1.9.0
 torchtext==0.18.0
 torchvision==0.24.0
 # xgboost pulls nvidia-nccl-cu12 transitively even in CPU context. Align the
