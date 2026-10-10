@@ -58,5 +58,5 @@ lerobot>=0.5.0,<0.6; python_version >= "3.12"
 # against our pinned torch 2.9.0 with a c10 ABI symbol error); cap to the 0.9.x
 # line, which lerobot 0.5.1 allows (torchcodec>=0.3,<0.11) and which loads on
 # torch 2.9.
-torchcodec<0.10; python_version >= "3.12"
+torchcodec<0.18; python_version >= "3.12"
 av; python_version >= "3.12"
